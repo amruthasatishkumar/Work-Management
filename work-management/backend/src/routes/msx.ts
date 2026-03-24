@@ -268,10 +268,10 @@ async function fetchOppByIdBackend(
 
   const oppRes = await fetch(`${D365_BASE_BE}/opportunities(${oppId})`, { headers });
   if (!oppRes.ok) {
-    const body = await oppRes.json().catch(() => ({}));
+    const body: any = await oppRes.json().catch(() => ({}));
     throw new Error(body?.error?.message ?? `D365 returned HTTP ${oppRes.status} for opportunity ${oppId}`);
   }
-  const opp = await oppRes.json();
+  const opp: any = await oppRes.json();
 
   let account: any = null;
   let tpid = 0;
@@ -282,7 +282,7 @@ async function fetchOppByIdBackend(
       { headers },
     );
     if (accRes.ok) {
-      const acc = await accRes.json();
+      const acc: any = await accRes.json();
       account = { accountid: acc.accountid, name: acc.name, websiteurl: acc.websiteurl ?? null };
       tpid = acc.msp_mstopparentid ?? 0;
     }
@@ -292,7 +292,7 @@ async function fetchOppByIdBackend(
     `${D365_BASE_BE}/activitypointers?$filter=_regardingobjectid_value eq '${oppId}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`,
     { headers },
   );
-  const activities = actRes.ok ? ((await actRes.json()).value ?? []) : [];
+  const activities = actRes.ok ? ((await actRes.json() as any).value ?? []) : [];
 
   let annotations: any[] = [];
   try {
@@ -301,7 +301,7 @@ async function fetchOppByIdBackend(
       { headers },
     );
     if (commentsRes.ok) {
-      const j = await commentsRes.json();
+      const j: any = await commentsRes.json();
       annotations = JSON.parse(j.value ?? '[]');
     }
   } catch { /* skip */ }
@@ -338,10 +338,10 @@ router.post('/deal-team-opps', async (req: Request, res: Response) => {
 
     const whoRes = await fetch(`${D365_BASE_BE}/WhoAmI()`, { headers });
     if (!whoRes.ok) {
-      const body = await whoRes.json().catch(() => ({}));
+      const body: any = await whoRes.json().catch(() => ({}));
       return res.status(500).json({ error: body?.error?.message ?? `WhoAmI failed with HTTP ${whoRes.status}` });
     }
-    const { UserId } = await whoRes.json();
+    const { UserId } = (await whoRes.json()) as any;
     const userId = UserId.toLowerCase().replace(/[{}]/g, '');
 
     const fetchXml = `<fetch distinct="true" no-lock="true">
@@ -362,10 +362,10 @@ router.post('/deal-team-opps', async (req: Request, res: Response) => {
 
     const teamsRes = await fetch(`${D365_BASE_BE}/teams?fetchXml=${encodeURIComponent(fetchXml)}`, { headers });
     if (!teamsRes.ok) {
-      const body = await teamsRes.json().catch(() => ({}));
+      const body: any = await teamsRes.json().catch(() => ({}));
       return res.status(500).json({ error: body?.error?.message ?? 'Could not fetch deal team memberships.' });
     }
-    const teamsJson = await teamsRes.json();
+    const teamsJson: any = await teamsRes.json();
 
     const oppIds: string[] = Array.from(new Set(
       (teamsJson.value ?? [])
