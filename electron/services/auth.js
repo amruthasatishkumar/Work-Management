@@ -57,7 +57,7 @@ function createAuthService(userDataPath, openBrowser) {
   const pca = new PublicClientApplication({
     auth: {
       clientId: CLIENT_ID,
-      authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+      authority: 'https://login.microsoftonline.com/organizations',
     },
     cache: { cachePlugin },
   });
