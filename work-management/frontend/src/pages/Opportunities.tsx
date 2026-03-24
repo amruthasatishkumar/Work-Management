@@ -64,6 +64,7 @@ function OpportunityForm({ initial, accounts, onSubmit, onClose, loading }: {
 
 // â”€â”€â”€ Add-to-activity modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+// @ts-ignore - reserved for future use
 function AddActivityModal({ opp, prefillPurpose, onClose }: {
   opp: Opportunity; prefillPurpose: string; onClose: () => void;
 }) {

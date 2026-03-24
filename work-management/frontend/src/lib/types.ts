@@ -73,6 +73,7 @@ export interface Activity {
   position: number;
   notes: string | null;
   msx_id: string | null;
+  msx_entity_type: string | null;
   created_at: string;
   updated_at: string;
 }

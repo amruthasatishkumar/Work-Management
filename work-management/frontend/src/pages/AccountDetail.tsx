@@ -54,7 +54,7 @@ function ActivityForm({ initial, accountId, opportunities, onSubmit, onClose, lo
   const [type, setType] = useState<Activity['type']>(initial?.type ?? 'Meeting');
   const [purpose, setPurpose] = useState(initial?.purpose ?? '');
   const [date, setDate] = useState(initial?.date ?? new Date().toISOString().split('T')[0]);
-  const [status, setStatus] = useState<Activity['status']>(initial?.status ?? 'Planned');
+  const [status, setStatus] = useState<Activity['status']>(initial?.status ?? 'To Do');
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
   return (

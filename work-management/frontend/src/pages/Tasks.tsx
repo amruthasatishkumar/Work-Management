@@ -11,7 +11,7 @@ import { GripVertical, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
-import { PageHeader, Badge, statusVariant, Spinner } from '../components/ui';
+import { PageHeader, Badge, Spinner } from '../components/ui';
 import type { Activity, Account } from '../lib/types';
 
 const BOARD_COLUMNS: { status: Activity['status']; label: string; color: string; darkColor: string }[] = [

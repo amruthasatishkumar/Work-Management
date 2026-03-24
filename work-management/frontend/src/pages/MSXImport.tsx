@@ -488,7 +488,7 @@ export default function MSXImport() {
             description: opp.description ?? null,
             status: mapOppStatus(opp.statecode),
             estimatedCloseDate: opp.estimatedclosedate ?? null,
-            solutionPlay: opp['msp_solutionplay@OData.Community.Display.V1.FormattedValue'] ?? (opp.msp_solutionplay != null ? String(opp.msp_solutionplay) : null),
+            solutionPlay: (opp as any)['msp_solutionplay@OData.Community.Display.V1.FormattedValue'] ?? ((opp as any).msp_solutionplay != null ? String((opp as any).msp_solutionplay) : null),
             link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
             activities: opp.activities.map(act => ({
               msxId: act.activityid,
@@ -499,7 +499,7 @@ export default function MSXImport() {
               date: act.scheduledstart ? act.scheduledstart.split('T')[0] : new Date().toISOString().split('T')[0],
               completedDate: act.actualend ? act.actualend.split('T')[0] : null,
             })),
-            comments: (opp.annotations ?? []).map((a: any) => ({
+            comments: ((opp as any).annotations ?? []).map((a: any) => ({
               // Use userId+modifiedOn as a stable synthetic key (no native ID on this field)
               msxId: a.userId && a.modifiedOn ? `${a.userId}:${a.modifiedOn}` : null,
               content: a.comment ?? '',
