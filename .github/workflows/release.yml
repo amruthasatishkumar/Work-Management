@@ -60,9 +60,6 @@ jobs:
           RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.ref_name }}
         run: node scripts/set-version.js "${{ env.RELEASE_VERSION }}"
 
-      - name: Rebuild native modules for Electron
-        run: npx @electron/rebuild --module-dir work-management/backend
-
       - name: Build app
         run: npm run electron:build
         env:

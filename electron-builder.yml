@@ -9,12 +9,8 @@ directories:
 files:
   - electron/**/*
   - work-management/backend/dist/**/*
-  - work-management/backend/node_modules/better-sqlite3/**/*
   - work-management/frontend/dist/**/*
   - package.json
-
-asarUnpack:
-  - work-management/backend/node_modules/better-sqlite3/**/*
 
 # Tell electron-builder which node_modules directories to rebuild native modules for
 npmRebuild: true
