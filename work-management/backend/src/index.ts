@@ -1,4 +1,8 @@
-import 'dotenv/config';
+// In production, DB_PATH and PORT are injected by Electron's main.js before this
+// module is loaded. In development, load from a .env file if present.
+if (!process.env.DB_PATH) {
+  try { require('dotenv').config(); } catch { /* no .env in production */ }
+}
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
