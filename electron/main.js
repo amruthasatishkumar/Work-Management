@@ -349,4 +349,27 @@ app.on('activate', () => {
   if (mainWindow === null) createMainWindow();
 });
 
+// ─── Global crash handler — shows a persistent dialog with full error details ─
+function showFatalError(err) {
+  const msg = err && err.stack ? err.stack : String(err);
+  // Write to a log file so it's readable even if the dialog is missed
+  try {
+    const logPath = path.join(app.getPath('userData'), 'crash.log');
+    const line = `[${new Date().toISOString()}] ${msg}\n\n`;
+    fs.appendFileSync(logPath, line, 'utf-8');
+  } catch { /* ignore log write failure */ }
+
+  dialog.showMessageBoxSync({
+    type: 'error',
+    title: 'SE Work Manager — Crashed',
+    message: 'An unexpected error occurred.',
+    detail: msg.slice(0, 2000), // dialog has character limit
+    buttons: ['OK'],
+  });
+  app.exit(1);
+}
+
+process.on('uncaughtException', (err) => showFatalError(err));
+process.on('unhandledRejection', (reason) => showFatalError(reason instanceof Error ? reason : new Error(String(reason))));
+
 main();
