@@ -9,8 +9,7 @@ directories:
 files:
   - electron/**/*
   - work-management/backend/dist/**/*
-  - "!work-management/backend/dist/**/*.map"
-  - work-management/backend/node_modules/**/*
+  - work-management/backend/node_modules/better-sqlite3/**/*
   - work-management/frontend/dist/**/*
   - package.json
 
