@@ -34,8 +34,9 @@ const SCOPES = ['User.Read'];
  * Tokens are cached to disk so subsequent launches are silent (no popup).
  *
  * @param {string} userDataPath  Electron's app.getPath('userData')
+ * @param {(url: string) => Promise<void>} openBrowser  Callback to open the auth URL (e.g. shell.openExternal)
  */
-function createAuthService(userDataPath) {
+function createAuthService(userDataPath, openBrowser) {
   const tokenCachePath = path.join(userDataPath, 'msal_cache.json');
 
   /** MSAL persistent cache — reads/writes the JSON file on disk */
@@ -87,6 +88,7 @@ function createAuthService(userDataPath) {
     // Interactive path — opens browser, user logs in, result returned via localhost redirect
     const result = await pca.acquireTokenInteractive({
       scopes: SCOPES,
+      openBrowser,
       successTemplate: `
         <!DOCTYPE html><html><body style="font-family:'Segoe UI',sans-serif;text-align:center;padding:60px;background:#f3f2f1">
         <h2 style="color:#107c10">✓ Signed in successfully</h2>

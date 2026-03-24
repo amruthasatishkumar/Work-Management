@@ -265,7 +265,7 @@ async function main() {
       user = { userId: 'dev-user', displayName: 'Developer', email: 'dev@localhost' };
     } else {
       const { createAuthService } = require('./services/auth');
-      const authService = createAuthService(userDataPath);
+      const authService = createAuthService(userDataPath, (url) => shell.openExternal(url));
       user = await authService.signIn();
     }
 
@@ -308,18 +308,32 @@ async function main() {
   } catch (err) {
     if (loadingWindow && !loadingWindow.isDestroyed()) {
       loadingWindow.close();
+      loadingWindow = null;
     }
-    dialog.showErrorBox(
-      'Work Management — Start-up Failed',
-      [
-        'The app could not start. This can happen if:',
-        '  • Sign-in was cancelled or failed',
-        '  • The Azure App Registration is not configured (check electron/services/auth.js)',
+    const errMsg = err && err.message ? err.message : String(err);
+    const { response } = await dialog.showMessageBox({
+      type: 'error',
+      title: 'SE Work Manager — Sign-in Failed',
+      message: 'Could not sign in to your Microsoft account.',
+      detail: [
+        'This is usually caused by one of the following:',
         '',
-        `Error: ${err && err.message ? err.message : String(err)}`,
-      ].join('\n')
-    );
-    app.quit();
+        '  • You are not connected to the corporate VPN',
+        '  • Sign-in was cancelled in the browser',
+        '  • Your session expired — please try again',
+        '',
+        `Detail: ${errMsg}`,
+      ].join('\n'),
+      buttons: ['Try Again', 'Quit'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (response === 0) {
+      // Retry — restart the whole startup flow
+      main();
+    } else {
+      app.quit();
+    }
   }
 }
 
