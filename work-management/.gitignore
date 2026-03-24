@@ -1,0 +1,33 @@
+# ── Sensitive / personal data ─────────────────────────────────────────────────
+# Your database — contains all your personal work data
+backend/data/
+*.db-shm
+*.db-wal
+
+# Environment files — contain your API keys and tokens
+backend/.env
+mcp-server/.env
+.env
+
+# ── Dependencies ───────────────────────────────────────────────────────────────
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+mcp-server/node_modules/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+backend/dist/
+frontend/dist/
+mcp-server/dist/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Editor (keep .vscode/mcp.json so Copilot works for anyone who clones) ────
+.vscode/*
+!.vscode/mcp.json

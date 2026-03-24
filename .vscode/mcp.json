@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "work-management": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "${workspaceFolder}/work-management/mcp-server"
+    }
+  }
+}

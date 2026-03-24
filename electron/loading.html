@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'unsafe-inline';" />
+  <title>Work Management</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 20px;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+
+    .logo {
+      font-size: 36px;
+      margin-bottom: 4px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      opacity: 0.5;
+      margin-top: -12px;
+    }
+
+    .spinner-wrap {
+      margin-top: 8px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(148, 163, 184, 0.2);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .status {
+      font-size: 13px;
+      opacity: 0.55;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">📊</div>
+  <h1>Work Management</h1>
+  <p class="subtitle">SE Productivity Tool</p>
+  <div class="spinner-wrap"><div class="spinner"></div></div>
+  <p class="status" id="status">Signing in with Microsoft…</p>
+
+  <script>
+    // Allow main process to update status text via IPC
+    // (No contextBridge needed on loading window — it closes before the app loads)
+  </script>
+</body>
+</html>

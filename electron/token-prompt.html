@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline';" />
+  <title>GitHub Token Setup</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      padding: 32px;
+      gap: 20px;
+      height: 100vh;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    p {
+      font-size: 13px;
+      opacity: 0.7;
+      line-height: 1.6;
+    }
+
+    a {
+      color: #818cf8;
+      text-underline-offset: 3px;
+    }
+
+    .steps {
+      font-size: 13px;
+      opacity: 0.7;
+      line-height: 1.8;
+      padding-left: 16px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.6;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 100%;
+      padding: 9px 12px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-family: 'Consolas', monospace;
+      margin-top: 6px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #6366f1;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+    }
+
+    button {
+      flex: 1;
+      padding: 9px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+    }
+
+    .primary {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    .primary:hover { background: #4f46e5; }
+
+    .secondary {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+
+    .secondary:hover { background: #334155; }
+
+    .error {
+      background: #450a0a;
+      border: 1px solid #7f1d1d;
+      border-radius: 6px;
+      color: #fca5a5;
+      font-size: 12px;
+      padding: 8px 12px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>🤖 AI Assistant Setup</h2>
+
+  <p>The AI chat feature requires a GitHub Personal Access Token with model inference access (GitHub Models).</p>
+
+  <ol class="steps">
+    <li>Go to <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong></li>
+    <li>Click <strong>Generate new token</strong></li>
+    <li>Set a name (e.g. "Work Management AI") and expiration</li>
+    <li>No repository permission needed — just generate and copy the token</li>
+  </ol>
+
+  <div>
+    <label for="token">GitHub Personal Access Token</label>
+    <input type="password" id="token" placeholder="github_pat_…" autocomplete="off" spellcheck="false" />
+  </div>
+
+  <div class="error" id="error">Please enter a token before continuing.</div>
+
+  <div class="buttons">
+    <button class="secondary" id="skipBtn">Skip (AI disabled)</button>
+    <button class="primary" id="saveBtn">Save &amp; Continue</button>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const token = document.getElementById('token').value.trim();
+      if (!token) {
+        document.getElementById('error').style.display = 'block';
+        return;
+      }
+      ipcRenderer.send('token-prompt:save', token);
+    });
+
+    document.getElementById('skipBtn').addEventListener('click', () => {
+      ipcRenderer.send('token-prompt:skip');
+    });
+
+    document.getElementById('token').addEventListener('input', () => {
+      document.getElementById('error').style.display = 'none';
+    });
+  </script>
+</body>
+</html>

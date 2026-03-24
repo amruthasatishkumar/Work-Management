@@ -1,0 +1,22 @@
+{
+  "name": "work-management",
+  "version": "1.0.0",
+  "description": "SE Work Manager",
+  "main": "electron/main.js",
+  "scripts": {
+    "electron:dev": "concurrently --kill-others \"npm run dev --prefix work-management/backend\" \"npm run dev --prefix work-management/frontend\" \"wait-on http://localhost:5173 http://localhost:3001/api/dashboard && cross-env ELECTRON_DEV=true electron .\"",
+    "electron:only": "wait-on http://localhost:5173 http://localhost:3001/api/dashboard && cross-env ELECTRON_DEV=true electron .",
+    "electron:build": "npm run build --prefix work-management/backend && npm run build --prefix work-management/frontend && electron-builder --publish never",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^2.16.2"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.3.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.3"
+  }
+}

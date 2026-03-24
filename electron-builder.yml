@@ -1,0 +1,36 @@
+appId: com.microsoft.internal.work-management
+productName: SE Work Manager
+copyright: Copyright © 2026 Microsoft
+
+directories:
+  output: dist-electron
+  buildResources: assets
+
+files:
+  - electron/**/*
+  - work-management/backend/dist/**/*
+  - "!work-management/backend/dist/**/*.map"
+  - work-management/backend/node_modules/**/*
+  - work-management/frontend/dist/**/*
+  - package.json
+
+# Tell electron-builder which node_modules directories to rebuild native modules for
+npmRebuild: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: SE Work Manager
+
+publish:
+  provider: github
+  releaseType: release
