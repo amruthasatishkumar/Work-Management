@@ -10,7 +10,8 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
-    "@azure/msal-node": "^2.16.2"
+    "@azure/msal-node": "^2.16.2",
+    "better-sqlite3": "^11.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
