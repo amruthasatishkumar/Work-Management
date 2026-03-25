@@ -211,6 +211,7 @@ function saveConfig(userDataPath, config) {
 async function startEmbeddedBackend(dbPath) {
   process.env.DB_PATH = dbPath;
   process.env.PORT = '3001';
+  process.env.NODE_ENV = 'production';
 
   // Require the compiled backend entrypoint — starts Express automatically
   require(path.join(__dirname, '..', 'work-management', 'backend', 'dist', 'index.js'));
