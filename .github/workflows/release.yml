@@ -45,7 +45,18 @@ jobs:
         run: npm ci --prefix work-management/backend
 
       - name: Rebuild better-sqlite3 for Electron ABI
-        run: npx @electron/rebuild -f -w better-sqlite3
+        run: |
+          $electronVersion = node -e "process.stdout.write(require('./node_modules/electron/package.json').version)"
+          Write-Host "Rebuilding better-sqlite3 for Electron $electronVersion"
+          npx @electron/rebuild -f -w better-sqlite3 --electronVersion $electronVersion
+          Write-Host "Rebuild complete. Binary:"
+          Get-Item "node_modules/better-sqlite3/build/Release/better_sqlite3.node" | Select-Object FullName, Length, LastWriteTime
+
+      - name: Verify better-sqlite3 loads in Electron
+        run: |
+          $result = & "node_modules/.bin/electron.cmd" -e "try { require('better-sqlite3'); process.stdout.write('OK'); } catch(e) { process.stdout.write('FAIL:' + e.message); process.exit(1); }" 2>&1
+          Write-Host "Electron load test: $result"
+          if ($result -like 'FAIL*') { exit 1 }
 
       - name: Validate version input
         if: github.event_name == 'workflow_dispatch'

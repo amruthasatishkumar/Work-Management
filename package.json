@@ -6,8 +6,7 @@
   "scripts": {
     "electron:dev": "concurrently --kill-others \"npm run dev --prefix work-management/backend\" \"npm run dev --prefix work-management/frontend\" \"wait-on http://localhost:5173 http://localhost:3001/api/dashboard && cross-env ELECTRON_DEV=true electron .\"",
     "electron:only": "wait-on http://localhost:5173 http://localhost:3001/api/dashboard && cross-env ELECTRON_DEV=true electron .",
-    "electron:build": "npm run build --prefix work-management/backend && npm run build --prefix work-management/frontend && electron-builder --publish never",
-    "postinstall": "electron-builder install-app-deps"
+    "electron:build": "npm run build --prefix work-management/backend && npm run build --prefix work-management/frontend && electron-builder --publish never"
   },
   "dependencies": {
     "@azure/msal-node": "^2.16.2",
