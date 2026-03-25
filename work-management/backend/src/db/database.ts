@@ -37,8 +37,7 @@ const db = {
   exec: (sql: string) => _db.exec(sql),
 };
 
-// Enable WAL mode for better performance
-db.exec('PRAGMA journal_mode = WAL');
+// Enable foreign key enforcement
 db.exec('PRAGMA foreign_keys = ON');
 
 // --- Schema ---
