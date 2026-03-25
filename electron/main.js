@@ -253,35 +253,44 @@ async function main() {
   await app.whenReady();
 
   const userDataPath = app.getPath('userData');
+  const logFile = path.join(userDataPath, 'startup.log');
+  const log = (msg) => {
+    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    fs.appendFileSync(logFile, line);
+    console.log(msg);
+  };
+
+  log('main() started, userDataPath=' + userDataPath);
 
   // 1. Show splash screen immediately
   createLoadingWindow();
+  log('step1: loading window created');
 
   try {
     // 2. Authenticate with Microsoft (org-restricted via Entra ID)
     let user;
     if (isDev) {
-      // In dev mode, skip real auth to allow fast iteration.
-      // Use a fixed dev user ID so you get a consistent dev DB.
       user = { userId: 'dev-user', displayName: 'Developer', email: 'dev@localhost' };
     } else {
+      log('step2: starting auth');
       const { createAuthService } = require('./services/auth');
       const authService = createAuthService(userDataPath, (url) => shell.openExternal(url));
       user = await authService.signIn();
+      log('step2: auth done, user=' + user.userId);
     }
 
     // 3. Determine per-user SQLite DB path
-    //    Each Entra object ID maps to an isolated database file
     const dbPath = path.join(userDataPath, `${user.userId}.db`);
-    restoreFromOneDriveIfNeeded(dbPath); // auto-restore if DB is missing but OneDrive backup exists
+    restoreFromOneDriveIfNeeded(dbPath);
     activeDbPath = dbPath;
+    log('step3: dbPath=' + dbPath);
 
     // 4. Check for GitHub token (AI assistant)
-    // Close loading window before showing the token prompt so it doesn't sit behind it
     if (loadingWindow && !loadingWindow.isDestroyed()) {
       loadingWindow.close();
       loadingWindow = null;
     }
+    log('step4: checking github token');
     const config = loadConfig(userDataPath);
     if (!config.githubToken) {
       const { token } = await promptForGitHubToken();
@@ -293,20 +302,26 @@ async function main() {
     if (config.githubToken) {
       process.env.GITHUB_TOKEN = config.githubToken;
     }
+    log('step4: github token done');
 
     // 5. Start the embedded Express backend (production only)
-    //    In dev the backend is already running via ts-node-dev
     if (!isDev) {
+      log('step5: starting backend');
       await startEmbeddedBackend(dbPath);
+      log('step5: backend started');
     } else {
-      // In dev, set DB_PATH so the backend uses the right file if it reads the env var
       process.env.DB_PATH = dbPath;
     }
 
     // 6. Open the main application window
+    log('step6: creating main window');
     createMainWindow();
+    log('step6: main window created');
 
   } catch (err) {
+    const errMsg = err && err.message ? err.message : String(err);
+    const stack = err && err.stack ? err.stack : errMsg;
+    try { fs.appendFileSync(path.join(app.getPath('userData'), 'startup.log'), `[${new Date().toISOString()}] CATCH: ${stack}\n`); } catch {}
     if (loadingWindow && !loadingWindow.isDestroyed()) {
       loadingWindow.close();
       loadingWindow = null;
