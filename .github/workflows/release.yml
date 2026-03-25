@@ -44,6 +44,9 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --prefix work-management/backend
 
+      - name: Rebuild better-sqlite3 for Electron ABI
+        run: npx @electron/rebuild -f -w better-sqlite3
+
       - name: Validate version input
         if: github.event_name == 'workflow_dispatch'
         shell: bash
