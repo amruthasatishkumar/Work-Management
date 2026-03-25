@@ -326,7 +326,6 @@ async function main() {
       loadingWindow.close();
       loadingWindow = null;
     }
-    const errMsg = err && err.message ? err.message : String(err);
     const { response } = await dialog.showMessageBox({
       type: 'error',
       title: 'SE Work Manager — Sign-in Failed',
