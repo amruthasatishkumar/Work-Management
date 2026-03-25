@@ -9,8 +9,7 @@
     "electron:build": "npm run build --prefix work-management/backend && npm run build --prefix work-management/frontend && electron-builder --publish never"
   },
   "dependencies": {
-    "@azure/msal-node": "^2.16.2",
-    "better-sqlite3": "^11.0.0"
+    "@azure/msal-node": "^2.16.2"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

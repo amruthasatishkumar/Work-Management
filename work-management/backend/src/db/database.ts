@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { Database as WasmDatabase } from 'node-sqlite3-wasm';
 import path from 'path';
 import fs from 'fs';
 
@@ -11,7 +11,31 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-const db = new Database(DB_PATH);
+const _db = new WasmDatabase(DB_PATH);
+
+// Shim: wraps node-sqlite3-wasm's Statement so callers can use the
+// better-sqlite3 spread-args style: db.prepare(sql).all(a, b, c)
+function makeStmtShim(sql: string) {
+  return {
+    all(...args: unknown[]) {
+      const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+      return _db.all(sql, params as any);
+    },
+    get(...args: unknown[]) {
+      const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+      return _db.get(sql, params as any);
+    },
+    run(...args: unknown[]) {
+      const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+      return _db.run(sql, params as any);
+    },
+  };
+}
+
+const db = {
+  prepare: (sql: string) => makeStmtShim(sql),
+  exec: (sql: string) => _db.exec(sql),
+};
 
 // Enable WAL mode for better performance
 db.exec('PRAGMA journal_mode = WAL');
