@@ -11,23 +11,41 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Remove stale WAL sidecar files left by previous better-sqlite3 sessions.
-// node-sqlite3-wasm's WASM VFS never creates these, so it's always safe to delete them.
+// 1. Remove stale WAL sidecar files from old better-sqlite3 sessions, and the
+//    WASM VFS lock directory (node-sqlite3-wasm uses a `.lock` dir for locking).
 for (const suffix of ['-shm', '-wal', '-journal']) {
-  try { fs.unlinkSync(DB_PATH + suffix); } catch { /* doesn't exist, ignore */ }
+  try { fs.unlinkSync(DB_PATH + suffix); } catch { }
+}
+try { fs.rmSync(DB_PATH + '.lock', { recursive: true, force: true }); } catch { }
+
+// 2. Detect WAL mode via raw SQLite file header (byte offset 18 == 2 means WAL).
+//    node-sqlite3-wasm's WASM VFS has no shared-memory support and CANNOT open
+//    WAL-mode databases — sqlite3_open_v2 returns SQLITE_CANTOPEN immediately.
+//    Reading the raw bytes avoids acquiring any SQLite lock/handle, which is key
+//    on Windows where a failed open still holds a handle briefly.
+if (fs.existsSync(DB_PATH)) {
+  try {
+    const header = Buffer.alloc(20);
+    const fd = fs.openSync(DB_PATH, 'r');
+    fs.readSync(fd, header, 0, 20, 0);
+    fs.closeSync(fd);
+    if (header[18] === 2) {
+      console.warn('[database] WAL-mode DB detected via header; deleting for clean recreation.');
+      fs.unlinkSync(DB_PATH);
+    }
+  } catch { /* unreadable/empty file — let WasmDatabase handle it below */ }
 }
 
-// Open the database. If it fails (e.g. the existing file has WAL mode baked into
-// its SQLite header from an old better-sqlite3 session — incompatible with the
-// WASM VFS which has no shared-memory support), delete and recreate from scratch.
-// All CREATE TABLE IF NOT EXISTS + migration code below handles re-initialisation.
+// 3. Open (or create) the database.
+//    Safety-net: if it still fails for any reason, delete and start completely fresh.
+//    All schema + migrations run unconditionally below, so data is recreated correctly.
 let _db: WasmDatabase;
 try {
   _db = new WasmDatabase(DB_PATH);
-  _db.exec('SELECT 1'); // verify the connection is actually usable
-} catch {
-  console.warn('[database] Could not open existing DB (likely WAL header mismatch); recreating from scratch.');
-  try { fs.unlinkSync(DB_PATH); } catch { /* file doesn't exist */ }
+} catch (e) {
+  console.warn('[database] DB open failed; recreating from scratch.', (e as Error)?.message);
+  try { fs.unlinkSync(DB_PATH); } catch { }
+  try { fs.rmSync(DB_PATH + '.lock', { recursive: true, force: true }); } catch { }
   _db = new WasmDatabase(DB_PATH);
 }
 
