@@ -20,6 +20,7 @@ win:
       arch:
         - x64
   icon: assets/icon.ico
+  artifactName: SE-Work-Manager-Setup-${version}.${ext}
 
 nsis:
   oneClick: false

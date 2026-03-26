@@ -442,7 +442,21 @@ function showFatalError(err) {
   app.exit(1);
 }
 
-process.on('uncaughtException', (err) => showFatalError(err));
-process.on('unhandledRejection', (reason) => showFatalError(reason instanceof Error ? reason : new Error(String(reason))));
+process.on('uncaughtException', (err) => {
+  if (isUpdaterError(err)) return; // electron-updater errors are non-fatal
+  showFatalError(err);
+});
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  if (isUpdaterError(err)) return; // electron-updater errors are non-fatal
+  showFatalError(err);
+});
+
+function isUpdaterError(err) {
+  const text = (err && err.stack) ? err.stack : String(err);
+  return text.includes('electron-updater') ||
+         text.includes('builder-util-runtime') ||
+         (err && err.message && err.message.startsWith('Cannot download'));
+}
 
 main();
