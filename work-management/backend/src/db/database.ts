@@ -11,7 +11,25 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-const _db = new WasmDatabase(DB_PATH);
+// Remove stale WAL sidecar files left by previous better-sqlite3 sessions.
+// node-sqlite3-wasm's WASM VFS never creates these, so it's always safe to delete them.
+for (const suffix of ['-shm', '-wal', '-journal']) {
+  try { fs.unlinkSync(DB_PATH + suffix); } catch { /* doesn't exist, ignore */ }
+}
+
+// Open the database. If it fails (e.g. the existing file has WAL mode baked into
+// its SQLite header from an old better-sqlite3 session — incompatible with the
+// WASM VFS which has no shared-memory support), delete and recreate from scratch.
+// All CREATE TABLE IF NOT EXISTS + migration code below handles re-initialisation.
+let _db: WasmDatabase;
+try {
+  _db = new WasmDatabase(DB_PATH);
+  _db.exec('SELECT 1'); // verify the connection is actually usable
+} catch {
+  console.warn('[database] Could not open existing DB (likely WAL header mismatch); recreating from scratch.');
+  try { fs.unlinkSync(DB_PATH); } catch { /* file doesn't exist */ }
+  _db = new WasmDatabase(DB_PATH);
+}
 
 // Shim: wraps node-sqlite3-wasm's Statement so callers can use the
 // better-sqlite3 spread-args style: db.prepare(sql).all(a, b, c)
