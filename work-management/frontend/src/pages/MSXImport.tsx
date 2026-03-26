@@ -74,7 +74,11 @@ async function d365Get<T>(accessToken: string, url: string): Promise<T[]> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `HTTP ${res.status}`);
+    const raw: string = body?.error?.message ?? `HTTP ${res.status}`;
+    if (res.status === 403 || raw.toLowerCase().includes('ip address')) {
+      throw new Error('Access denied — please connect to the VPN and authenticate via Azure CLI ("az login").');
+    }
+    throw new Error(raw);
   }
   const json = await res.json();
   return json.value ?? [];
