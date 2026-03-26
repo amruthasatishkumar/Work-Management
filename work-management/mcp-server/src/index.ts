@@ -5,11 +5,43 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { DatabaseSync } from 'node:sqlite';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.resolve(__dirname, '..', '..', 'backend', 'data', 'workmanagement.db');
+
+/**
+ * Locate the active user database.
+ *
+ * Priority:
+ *  1. DB_PATH env var — explicit override for any scenario
+ *  2. Most recently modified UUID.db in %APPDATA%\work-management\
+ *     (the Electron app stores each user's DB as <userId>.db there after sign-in)
+ */
+function findProductionDb(): string {
+  if (process.env.DB_PATH) return process.env.DB_PATH;
+
+  const appData = process.env.APPDATA;
+  if (!appData) throw new Error('APPDATA environment variable is not set');
+
+  const dir = path.join(appData, 'work-management');
+  if (!fs.existsSync(dir)) throw new Error(`Work Management data folder not found: ${dir}`);
+
+  // UUID filenames only — excludes dev-user.db and other non-user files
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.db$/i;
+  let best: { file: string; mtime: number } | null = null;
+  for (const f of fs.readdirSync(dir)) {
+    if (!uuidPattern.test(f)) continue;
+    const full = path.join(dir, f);
+    const mtime = fs.statSync(full).mtimeMs;
+    if (!best || mtime > best.mtime) best = { file: full, mtime };
+  }
+  if (!best) throw new Error(`No user database found in ${dir}. Open the SE Work Manager app first.`);
+  return best.file;
+}
+
+const DB_PATH = findProductionDb();
 
 let db: DatabaseSync;
 try {
