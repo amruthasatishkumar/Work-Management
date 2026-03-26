@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 const isDev = process.env.ELECTRON_DEV === 'true';
 
@@ -247,6 +248,10 @@ ipcMain.handle('backup:status', () => {
   return { connected, backupDir, lastBackup };
 });
 
+ipcMain.handle('update:install', () => {
+  autoUpdater.quitAndInstall();
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
@@ -319,6 +324,36 @@ async function main() {
     createMainWindow();
     startupComplete = true; // from here on, window-all-closed should quit normally
     log('step6: main window created');
+
+    // 7. Check for updates (production only)
+    if (!isDev) {
+      autoUpdater.autoDownload = true;
+      autoUpdater.autoInstallOnAppQuit = true;
+      autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+
+      autoUpdater.on('update-available', (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', { status: 'available', version: info.version });
+        }
+      });
+      autoUpdater.on('download-progress', (p) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', { status: 'downloading', percent: Math.round(p.percent) });
+        }
+      });
+      autoUpdater.on('update-downloaded', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', { status: 'downloaded' });
+        }
+      });
+      autoUpdater.on('error', (err) => {
+        log('auto-updater error: ' + (err && err.message ? err.message : String(err)));
+      });
+
+      autoUpdater.checkForUpdates().catch((err) => {
+        log('checkForUpdates failed: ' + (err && err.message ? err.message : String(err)));
+      });
+    }
 
   } catch (err) {
     const errMsg = err && err.message ? err.message : String(err);
