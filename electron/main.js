@@ -16,6 +16,7 @@ const ALLOWED_ORIGINS = [
 let mainWindow = null;
 let loadingWindow = null;
 let activeDbPath = null; // set after auth so backup hooks can reference it
+let startupComplete = false; // set true once main window is created; prevents premature quit during startup
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OneDrive backup helpers
@@ -316,6 +317,7 @@ async function main() {
     // 6. Open the main application window
     log('step6: creating main window');
     createMainWindow();
+    startupComplete = true; // from here on, window-all-closed should quit normally
     log('step6: main window created');
 
   } catch (err) {
@@ -357,6 +359,10 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
+  // During startup, there is a window-less gap between step4 (loading window closed)
+  // and step6 (main window created). Without this guard, Electron quits here, killing
+  // the process before the main window can be shown.
+  if (!startupComplete) return;
   if (process.platform !== 'darwin') app.quit();
 });
 
