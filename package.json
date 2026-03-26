@@ -1,6 +1,6 @@
 {
   "name": "work-management",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "SE Work Manager",
   "main": "electron/main.js",
   "scripts": {
