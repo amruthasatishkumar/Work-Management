@@ -67,6 +67,7 @@ router.post('/import', (req: Request, res: Response) => {
   let importedAccounts = 0;
   let importedOpportunities = 0;
   let importedActivities = 0;
+  let importedMilestones = 0;
 
   try {
     db.exec('BEGIN');
@@ -129,6 +130,22 @@ router.post('/import', (req: Request, res: Response) => {
             importedActivities++;
           }
 
+          // Upsert milestones
+          for (const m of opp.milestones ?? []) {
+            if (!m.msxId) continue;
+            const existingM: any = db.prepare('SELECT id FROM opportunity_milestones WHERE msx_id = ?').get(m.msxId);
+            if (existingM) {
+              db.prepare(
+                `UPDATE opportunity_milestones SET milestone_number=?,name=?,workload=?,commitment=?,category=?,monthly_use=?,milestone_date=?,status=?,owner=?,synced_at=datetime('now') WHERE msx_id=?`
+              ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.msxId);
+            } else {
+              db.prepare(
+                'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+              ).run(oppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null);
+              importedMilestones++;
+            }
+          }
+
           // Upsert comments from msp_forecastcommentsjsonfield
           for (const comment of opp.comments ?? []) {
             if (!comment.content?.trim()) continue;
@@ -168,6 +185,7 @@ router.post('/import', (req: Request, res: Response) => {
         accounts: importedAccounts,
         opportunities: importedOpportunities,
         activities: importedActivities,
+        milestones: importedMilestones,
       },
     });
   } catch (err: any) {

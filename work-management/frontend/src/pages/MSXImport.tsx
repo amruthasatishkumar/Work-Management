@@ -37,6 +37,27 @@ interface MsxAccountResult {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const D365_BASE = 'https://microsoftsales.crm.dynamics.com/api/data/v9.2';
+const MILESTONE_SELECT = [
+  'msp_engagementmilestoneid', 'msp_milestonenumber', 'msp_name',
+  '_msp_workloadlkid_value', 'msp_commitmentrecommendation', 'msp_milestonecategory',
+  'msp_monthlyuse', 'msp_milestonedate', 'msp_milestonestatus', '_ownerid_value',
+].join(',');
+const FV = '@OData.Community.Display.V1.FormattedValue';
+
+function mapMilestones(raw: any[]): any[] {
+  return raw.map(m => ({
+    msxId: m.msp_engagementmilestoneid,
+    milestoneNumber: m.msp_milestonenumber ?? null,
+    name: m.msp_name ?? null,
+    workload: m[`_msp_workloadlkid_value${FV}`] ?? null,
+    commitment: m[`msp_commitmentrecommendation${FV}`] ?? m.msp_commitmentrecommendation ?? null,
+    category: m[`msp_milestonecategory${FV}`] ?? m.msp_milestonecategory ?? null,
+    monthlyUse: m.msp_monthlyuse ?? null,
+    milestoneDate: m.msp_milestonedate ? m.msp_milestonedate.split('T')[0] : null,
+    status: m[`msp_milestonestatus${FV}`] ?? m.msp_milestonestatus ?? null,
+    owner: m[`_ownerid_value${FV}`] ?? null,
+  }));
+}
 
 async function d365Get<T>(accessToken: string, url: string): Promise<T[]> {
   // webSecurity: false on the Electron main window disables CORS in the renderer.
@@ -108,7 +129,18 @@ async function searchD365ByTpids(
             annotations = JSON.parse(commentsJson.value ?? '[]');
           }
         } catch { /* skip comments if unavailable */ }
-        oppsWithActivities.push({ ...opp, activities, annotations });
+
+        // Fetch milestones so they are saved on import
+        let milestones: any[] = [];
+        try {
+          const msRaw = await d365Get<any>(
+            accessToken,
+            `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${opp.opportunityid}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
+          );
+          milestones = mapMilestones(msRaw);
+        } catch { /* skip milestones if unavailable */ }
+
+        oppsWithActivities.push({ ...opp, activities, annotations, milestones });
       }
       results.push({ tpid, account, opportunities: oppsWithActivities });
     } catch (err: any) {
@@ -205,7 +237,17 @@ async function enrichOppById(
     }
   } catch { /* skip */ }
 
-  return { account, tpid, opp: { ...opp, activities, annotations } };
+  // Fetch milestones so they are saved on import
+  let milestones: any[] = [];
+  try {
+    const msRaw = await d365Get<any>(
+      accessToken,
+      `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${oppId}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
+    );
+    milestones = mapMilestones(msRaw);
+  } catch { /* skip milestones if unavailable */ }
+
+  return { account, tpid, opp: { ...opp, activities, annotations, milestones } };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -505,6 +547,7 @@ export default function MSXImport() {
               content: a.comment ?? '',
               createdAt: a.modifiedOn ?? null,
             })),
+            milestones: (opp as any).milestones ?? [],
           })),
         };
       })
