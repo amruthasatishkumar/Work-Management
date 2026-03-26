@@ -326,32 +326,49 @@ async function main() {
     log('step6: main window created');
 
     // 7. Check for updates (production only)
+    // Wait for the renderer to finish loading before checking so that the
+    // update:status IPC listener is registered before any events fire.
     if (!isDev) {
       autoUpdater.autoDownload = true;
       autoUpdater.autoInstallOnAppQuit = true;
       autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
 
-      autoUpdater.on('update-available', (info) => {
+      // Cache status in case events fire before the renderer re-registers
+      // (e.g. after a hot-reload or navigation). Re-send on every new load.
+      let lastUpdateStatus = null;
+
+      const sendStatus = (data) => {
+        lastUpdateStatus = data;
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('update:status', { status: 'available', version: info.version });
+          mainWindow.webContents.send('update:status', data);
         }
+      };
+
+      // Re-send the last known status whenever the renderer reloads
+      mainWindow.webContents.on('did-finish-load', () => {
+        if (lastUpdateStatus) {
+          mainWindow.webContents.send('update:status', lastUpdateStatus);
+        }
+      });
+
+      autoUpdater.on('update-available', (info) => {
+        sendStatus({ status: 'available', version: info.version });
       });
       autoUpdater.on('download-progress', (p) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('update:status', { status: 'downloading', percent: Math.round(p.percent) });
-        }
+        sendStatus({ status: 'downloading', percent: Math.round(p.percent) });
       });
       autoUpdater.on('update-downloaded', () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('update:status', { status: 'downloaded' });
-        }
+        sendStatus({ status: 'downloaded' });
       });
       autoUpdater.on('error', (err) => {
         log('auto-updater error: ' + (err && err.message ? err.message : String(err)));
       });
 
-      autoUpdater.checkForUpdates().catch((err) => {
-        log('checkForUpdates failed: ' + (err && err.message ? err.message : String(err)));
+      // Delay check until renderer is ready to receive IPC messages
+      mainWindow.webContents.once('did-finish-load', () => {
+        autoUpdater.checkForUpdates().catch((err) => {
+          log('checkForUpdates failed: ' + (err && err.message ? err.message : String(err)));
+        });
       });
     }
 
