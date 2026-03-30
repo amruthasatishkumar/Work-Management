@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Download, RefreshCw, ChevronDown, ChevronRight,
-  CheckSquare, Square, AlertCircle, CheckCircle2, Loader2, Plus, X, Users, Link, Hash, AlertTriangle,
+  CheckSquare, Square, AlertCircle, CheckCircle2, Loader2, Plus, X, Users, Link, Hash, AlertTriangle, ExternalLink, Flag,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -932,6 +932,16 @@ export default function MSXImport() {
                                   }`}>
                                     {mapOppStatus(opp.statecode)}
                                   </span>
+                                  <a
+                                    href={`https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Open in MSX"
+                                    className="text-slate-300 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 shrink-0"
+                                    onClick={e => e.stopPropagation()}
+                                  >
+                                    <ExternalLink size={11} />
+                                  </a>
                                 </div>
                                 <button
                                   onClick={() => toggleOppExpand(oppKey)}
@@ -939,6 +949,12 @@ export default function MSXImport() {
                                 >
                                   {isOppExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                                   {opp.activities.length} activit{opp.activities.length !== 1 ? 'ies' : 'y'}
+                                  {((opp as any).milestones?.length ?? 0) > 0 && (
+                                    <span className="flex items-center gap-0.5 ml-1 text-purple-400 dark:text-purple-500">
+                                      <Flag size={9} />
+                                      {(opp as any).milestones.length} milestone{(opp as any).milestones.length !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
                                 </button>
                               </div>
                             </div>
@@ -958,6 +974,30 @@ export default function MSXImport() {
                                     }`}>
                                       {mapActivityStatus(act.statecode)}
                                     </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Milestones preview */}
+                            {isOppExpanded && ((opp as any).milestones?.length ?? 0) > 0 && (
+                              <div className="mt-1.5 ml-7 flex flex-col gap-1">
+                                <span className="text-xs font-medium text-purple-400 dark:text-purple-500 mb-0.5">Milestones</span>
+                                {(opp as any).milestones.map((m: any) => (
+                                  <div key={m.msxId} className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                    <Flag size={9} className="shrink-0 text-purple-300 dark:text-purple-600" />
+                                    <span className="truncate">{m.name || '(Unnamed)'}</span>
+                                    {m.milestoneDate && <span className="shrink-0 text-slate-300 dark:text-slate-500">{m.milestoneDate}</span>}
+                                    {m.status && (
+                                      <span className={`shrink-0 px-1 py-0.5 rounded text-xs ${
+                                        m.status.toLowerCase().includes('on track') ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
+                                        m.status.toLowerCase().includes('at risk') ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                                        m.status.toLowerCase().includes('behind') ? 'bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400' :
+                                        'bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                      }`}>
+                                        {m.status}
+                                      </span>
+                                    )}
                                   </div>
                                 ))}
                               </div>
