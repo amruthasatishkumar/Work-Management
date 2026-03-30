@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, ExternalLink, X, CheckSquare, Square, ArrowRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, ExternalLink, X, CheckSquare, Square, ArrowRight, BarChart3 } from 'lucide-react';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -426,6 +426,15 @@ export default function Opportunities() {
                 </p>
                 {opp.description && (
                   <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">{opp.description}</p>
+                )}
+                {opp.msx_id && (
+                  <Link
+                    to={`/opportunities/${opp.id}/milestones`}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors"
+                  >
+                    <BarChart3 size={13} />
+                    View Milestones
+                  </Link>
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
