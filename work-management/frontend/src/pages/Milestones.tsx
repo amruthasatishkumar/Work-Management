@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
@@ -25,7 +24,6 @@ export default function Milestones() {
   const filterTerritory = searchParams.get('territory') ?? '';
   const filterAccount   = searchParams.get('account')   ?? '';
   const filterOpp       = searchParams.get('opp')       ?? '';
-  const [myMilestones, setMyMilestones] = useState(false);
 
   const setFilter = (key: string, value: string) => {
     setSearchParams(prev => {
@@ -78,7 +76,7 @@ export default function Milestones() {
     territory_id: filterTerritory ? Number(filterTerritory) : undefined,
     account_id: filterAccount ? Number(filterAccount) : undefined,
     opportunity_id: filterOpp ? Number(filterOpp) : undefined,
-    on_team: myMilestones || undefined,
+    on_team: true,
   };
 
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
@@ -92,7 +90,7 @@ export default function Milestones() {
     <div>
       <PageHeader
         title="Milestones"
-        subtitle="Engagement milestones across your opportunities"
+        subtitle="Milestones you are a part of"
         action={null}
       />
 
@@ -121,21 +119,9 @@ export default function Milestones() {
           {opps.map(o => <option key={o.id} value={o.id}>{o.title}</option>)}
         </Select>
 
-        <button
-          onClick={() => setMyMilestones(v => !v)}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-            myMilestones
-              ? 'bg-blue-600 border-blue-600 text-white'
-              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-blue-400'
-          }`}
-        >
-          <Users size={13} />
-          My Milestones
-        </button>
-
-        {(hasFilters || myMilestones) && (
+        {hasFilters && (
           <button
-            onClick={() => { setSearchParams({}, { replace: true }); setMyMilestones(false); }}
+            onClick={() => setSearchParams({}, { replace: true })}
             className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
           >
             Clear filters

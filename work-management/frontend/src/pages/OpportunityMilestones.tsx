@@ -185,7 +185,7 @@ export default function OpportunityMilestones() {
     headers: Record<string, string>,
     userId: string,
     ms: any[],
-  ) => {
+  ): Promise<Set<string>> => {
     try {
       const fetchXml = `<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="true" no-lock="true">
         <entity name="team">
@@ -203,7 +203,7 @@ export default function OpportunityMilestones() {
         </entity>
       </fetch>`;
       const r = await fetch(`${D365_BASE}/teams?fetchXml=${encodeURIComponent(fetchXml)}`, { headers });
-      if (!r.ok) return;
+      if (!r.ok) return new Set();
       const j = await r.json();
       const memberIds = new Set<string>(
         (j.value ?? [])
@@ -217,7 +217,9 @@ export default function OpportunityMilestones() {
         );
       });
       setTeamStatus(map);
+      return memberIds;
     } catch { /* silent */ }
+    return new Set();
   }, []);
 
   const loadMilestones = useCallback(async () => {
@@ -246,9 +248,9 @@ export default function OpportunityMilestones() {
       setMilestones(loaded);
 
       if (loaded.length > 0) {
-        checkTeamMembership(headers, userId, loaded);
+        const memberIds = await checkTeamMembership(headers, userId, loaded);
 
-        // Save to local DB for AI assistant (fire-and-forget)
+        // Save to local DB — include onTeam so the Milestones page stays accurate
         const mapped = loaded.map(m => ({
           msxId: m.msp_engagementmilestoneid,
           milestoneNumber: m.msp_milestonenumber ?? null,
@@ -260,6 +262,7 @@ export default function OpportunityMilestones() {
           milestoneDate: m.msp_milestonedate ? m.msp_milestonedate.split('T')[0] : null,
           status: m[`msp_milestonestatus${FV}`] ?? m.msp_milestonestatus ?? null,
           owner: m[`_ownerid_value${FV}`] ?? null,
+          onTeam: memberIds.has(m.msp_engagementmilestoneid.toLowerCase().replace(/[{}]/g, '')),
         }));
         api.msx.refreshOpp({ localOppId: oppId, comments: [], activities: [], milestones: mapped })
           .catch(() => {});
@@ -305,6 +308,24 @@ export default function OpportunityMilestones() {
         throw new Error(e?.error?.message ?? `HTTP ${r.status}`);
       }
       setTeamStatus(p => ({ ...p, [milestoneId]: !isMember }));
+      // Persist updated on_team to local DB so Milestones page reflects the change
+      const { headers: h2, userId: uid2 } = (await getHeaders()) ?? {};
+      if (h2 && uid2) checkTeamMembership(h2, uid2, milestones).then(memberIds => {
+        const mapped = milestones.map(m => ({
+          msxId: m.msp_engagementmilestoneid,
+          milestoneNumber: m.msp_milestonenumber ?? null,
+          name: m.msp_name ?? null,
+          workload: m[`_msp_workloadlkid_value${FV}`] ?? null,
+          commitment: m[`msp_commitmentrecommendation${FV}`] ?? m.msp_commitmentrecommendation ?? null,
+          category: m[`msp_milestonecategory${FV}`] ?? m.msp_milestonecategory ?? null,
+          monthlyUse: m.msp_monthlyuse ?? null,
+          milestoneDate: m.msp_milestonedate ? m.msp_milestonedate.split('T')[0] : null,
+          status: m[`msp_milestonestatus${FV}`] ?? m.msp_milestonestatus ?? null,
+          owner: m[`_ownerid_value${FV}`] ?? null,
+          onTeam: memberIds.has(m.msp_engagementmilestoneid.toLowerCase().replace(/[{}]/g, '')),
+        }));
+        api.msx.refreshOpp({ localOppId: oppId, comments: [], activities: [], milestones: mapped }).catch(() => {});
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
