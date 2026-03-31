@@ -17,6 +17,7 @@ import {
   ArrowDownToLine,
   RefreshCw,
   Kanban,
+  Flag,
 } from 'lucide-react';
 
 const NAV = [
@@ -25,6 +26,7 @@ const NAV = [
   { to: '/accounts',     label: 'Accounts',      Icon: Building2 },
   { to: '/opportunities',          label: 'Opportunities',           Icon: TrendingUp },
   { to: '/opportunity-management', label: 'Opps Management',          Icon: Kanban },
+  { to: '/milestones',             label: 'Milestones',               Icon: Flag },
   { to: '/activities',             label: 'Activities',               Icon: Zap },
   { to: '/tasks',                  label: 'Activity Management',      Icon: CheckSquare },
   { to: '/se-work',                label: 'SE Work',                  Icon: BriefcaseBusiness },

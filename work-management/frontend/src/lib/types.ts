@@ -112,6 +112,26 @@ export interface Task {
   updated_at: string;
 }
 
+export interface Milestone {
+  id: number;
+  opportunity_id: number;
+  opportunity_title?: string;
+  account_name?: string;
+  territory_name?: string;
+  msx_id: string;
+  milestone_number: string | null;
+  name: string | null;
+  workload: string | null;
+  commitment: string | null;
+  category: string | null;
+  monthly_use: number | null;
+  milestone_date: string | null;
+  status: string | null;
+  owner: string | null;
+  on_team: number;
+  synced_at: string;
+}
+
 export interface DashboardData {
   stats: {
     territories: number;

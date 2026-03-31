@@ -23,10 +23,13 @@ router.get('/', (req: Request, res: Response) => {
   res.json(db.prepare(query).all(...params));
 });
 
-// GET distinct statuses present in the DB
+// GET distinct statuses present in the DB (always includes the known base set)
 router.get('/statuses', (_req: Request, res: Response) => {
-  const rows = db.prepare('SELECT DISTINCT status FROM opportunities ORDER BY status').all() as { status: string }[];
-  res.json(rows.map(r => r.status));
+  const BASE = ['Active', 'In Progress', 'Committed', 'Not Active'];
+  const rows = db.prepare('SELECT DISTINCT status FROM opportunities WHERE status IS NOT NULL').all() as { status: string }[];
+  const dbStatuses = rows.map(r => r.status);
+  const merged = Array.from(new Set([...BASE, ...dbStatuses])).sort();
+  res.json(merged);
 });
 
 // GET single opportunity

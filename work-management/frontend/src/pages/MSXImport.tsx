@@ -56,7 +56,41 @@ function mapMilestones(raw: any[]): any[] {
     milestoneDate: m.msp_milestonedate ? m.msp_milestonedate.split('T')[0] : null,
     status: m[`msp_milestonestatus${FV}`] ?? m.msp_milestonestatus ?? null,
     owner: m[`_ownerid_value${FV}`] ?? null,
+    onTeam: false, // will be set by checkMilestoneTeam
   }));
+}
+
+const MILESTONE_TEAM_TEMPLATE_ID = '316e4735-9e83-eb11-a812-0022481e1be0';
+
+// Checks which milestones the current D365 user is on the team for.
+// Returns a Set of milestone msx_ids the user belongs to.
+async function checkMilestoneTeam(accessToken: string, userId: string, milestones: any[]): Promise<Set<string>> {
+  if (!milestones.length || !userId) return new Set();
+  try {
+    const fetchXml = `<fetch version="1.0" output-format="xml-platform" mapping="logical" distinct="true" no-lock="true">
+      <entity name="team">
+        <attribute name="teamid"/>
+        <attribute name="regardingobjectid"/>
+        <filter type="and">
+          <condition attribute="teamtype" operator="eq" value="1"/>
+          <condition attribute="teamtemplateid" operator="eq" value="{${MILESTONE_TEAM_TEMPLATE_ID}}"/>
+        </filter>
+        <link-entity name="teammembership" from="teamid" to="teamid" link-type="inner" alias="tm">
+          <filter type="and">
+            <condition attribute="systemuserid" operator="eq" value="${userId}"/>
+          </filter>
+        </link-entity>
+      </entity>
+    </fetch>`;
+    const result = await d365Get<any>(accessToken, `${D365_BASE}/teams?fetchXml=${encodeURIComponent(fetchXml)}`);
+    return new Set<string>(
+      (result ?? [])
+        .map((t: any) => String(t._regardingobjectid_value ?? '').toLowerCase().replace(/[{}]/g, ''))
+        .filter(Boolean),
+    );
+  } catch {
+    return new Set();
+  }
 }
 
 async function d365Get<T>(accessToken: string, url: string): Promise<T[]> {
@@ -142,6 +176,15 @@ async function searchD365ByTpids(
             `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${opp.opportunityid}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
           );
           milestones = mapMilestones(msRaw);
+          try {
+            const whoRes = await fetch(`${D365_BASE}/WhoAmI`, {
+              headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+            });
+            const { UserId: rawUid } = whoRes.ok ? await whoRes.json() : {};
+            const userId = (rawUid ?? '').toLowerCase().replace(/[{}]/g, '');
+            const teamSet = await checkMilestoneTeam(accessToken, userId, milestones);
+            milestones = milestones.map(m => ({ ...m, onTeam: teamSet.has((m.msxId ?? '').toLowerCase().replace(/[{}]/g, '')) }));
+          } catch { /* onTeam stays false */ }
         } catch { /* skip milestones if unavailable */ }
 
         oppsWithActivities.push({ ...opp, activities, annotations, milestones });
@@ -249,6 +292,15 @@ async function enrichOppById(
       `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${oppId}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
     );
     milestones = mapMilestones(msRaw);
+    try {
+      const whoRes = await fetch(`${D365_BASE}/WhoAmI`, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json', 'OData-MaxVersion': '4.0', 'OData-Version': '4.0' },
+      });
+      const { UserId: rawUid } = whoRes.ok ? await whoRes.json() : {};
+      const userId = (rawUid ?? '').toLowerCase().replace(/[{}]/g, '');
+      const teamSet = await checkMilestoneTeam(accessToken, userId, milestones);
+      milestones = milestones.map(m => ({ ...m, onTeam: teamSet.has((m.msxId ?? '').toLowerCase().replace(/[{}]/g, '')) }));
+    } catch { /* onTeam stays false */ }
   } catch { /* skip milestones if unavailable */ }
 
   return { account, tpid, opp: { ...opp, activities, annotations, milestones } };

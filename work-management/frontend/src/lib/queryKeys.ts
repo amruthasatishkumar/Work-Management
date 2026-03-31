@@ -34,4 +34,8 @@ export const queryKeys = {
   seWork: {
     all: (status?: string) => ['se-work', status] as const,
   },
+  milestones: {
+    all: (params?: { territory_id?: number; account_id?: number; opportunity_id?: number; on_team?: boolean }) =>
+      ['milestones', params] as const,
+  },
 };

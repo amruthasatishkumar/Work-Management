@@ -136,12 +136,12 @@ router.post('/import', (req: Request, res: Response) => {
             const existingM: any = db.prepare('SELECT id FROM opportunity_milestones WHERE msx_id = ?').get(m.msxId);
             if (existingM) {
               db.prepare(
-                `UPDATE opportunity_milestones SET milestone_number=?,name=?,workload=?,commitment=?,category=?,monthly_use=?,milestone_date=?,status=?,owner=?,synced_at=datetime('now') WHERE msx_id=?`
-              ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.msxId);
+                `UPDATE opportunity_milestones SET milestone_number=?,name=?,workload=?,commitment=?,category=?,monthly_use=?,milestone_date=?,status=?,owner=?,on_team=?,synced_at=datetime('now') WHERE msx_id=?`
+              ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.onTeam ? 1 : 0, m.msxId);
             } else {
               db.prepare(
-                'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-              ).run(oppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null);
+                'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner,on_team) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+              ).run(oppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.onTeam ? 1 : 0);
               importedMilestones++;
             }
           }
@@ -249,12 +249,12 @@ router.post('/refresh-opp', (req: Request, res: Response) => {
         const existingM: any = db.prepare('SELECT id FROM opportunity_milestones WHERE msx_id = ?').get(m.msxId);
         if (existingM) {
           db.prepare(
-            `UPDATE opportunity_milestones SET milestone_number=?,name=?,workload=?,commitment=?,category=?,monthly_use=?,milestone_date=?,status=?,owner=?,synced_at=datetime('now') WHERE msx_id=?`
-          ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.msxId);
+            `UPDATE opportunity_milestones SET milestone_number=?,name=?,workload=?,commitment=?,category=?,monthly_use=?,milestone_date=?,status=?,owner=?,on_team=?,synced_at=datetime('now') WHERE msx_id=?`
+          ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.onTeam ? 1 : 0, m.msxId);
         } else {
           db.prepare(
-            'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-          ).run(localOppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null);
+            'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner,on_team) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+          ).run(localOppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.onTeam ? 1 : 0);
         }
       }
 

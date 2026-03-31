@@ -88,6 +88,7 @@ export default function Activities() {
   const [deleting, setDeleting] = useState<Activity | null>(null);
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterOpp, setFilterOpp] = useState('');
   const [hideCompleted, setHideCompleted] = useState(() => searchParams.get('exclude_completed') === '1');
   const [pushingId, setPushingId] = useState<number | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -103,8 +104,8 @@ export default function Activities() {
   });
 
   const { data = [], isLoading } = useQuery<Activity[]>({
-    queryKey: queryKeys.activities.all({ type: filterType || undefined, status: filterStatus || undefined }),
-    queryFn: () => api.activities.list({ type: filterType || undefined, status: filterStatus || undefined }),
+    queryKey: queryKeys.activities.all({ type: filterType || undefined, status: filterStatus || undefined, opportunity_id: filterOpp ? Number(filterOpp) : undefined }),
+    queryFn: () => api.activities.list({ type: filterType || undefined, status: filterStatus || undefined, opportunity_id: filterOpp ? Number(filterOpp) : undefined }),
   });
 
   const invalidate = () => {
@@ -244,6 +245,10 @@ export default function Activities() {
         <Select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setHideCompleted(false); }} className="max-w-xs">
           <option value="">All statuses</option>
           {ACT_STATUSES.map(s => <option key={s}>{s}</option>)}
+        </Select>
+        <Select value={filterOpp} onChange={e => setFilterOpp(e.target.value)} className="max-w-xs">
+          <option value="">All opportunities</option>
+          {opportunities.map(o => <option key={o.id} value={o.id}>{o.title}</option>)}
         </Select>
         {hideCompleted && (
           <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5">

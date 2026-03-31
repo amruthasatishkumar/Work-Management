@@ -107,6 +107,16 @@ export const api = {
   dashboard: {
     get: () => request<any>('/dashboard'),
   },
+  milestones: {
+    list: (params?: { territory_id?: number; account_id?: number; opportunity_id?: number; on_team?: boolean }) => {
+      const qs = new URLSearchParams();
+      if (params?.territory_id) qs.set('territory_id', String(params.territory_id));
+      if (params?.account_id) qs.set('account_id', String(params.account_id));
+      if (params?.opportunity_id) qs.set('opportunity_id', String(params.opportunity_id));
+      if (params?.on_team) qs.set('on_team', '1');
+      return request<any[]>(`/milestones?${qs}`);
+    },
+  },
   msx: {
     tokenStatus: () => request<any>('/msx/token-status'),
     checkExisting: (oppMsxIds: string[]) => request<{ existing: string[] }>('/msx/check-existing', { method: 'POST', body: JSON.stringify({ oppMsxIds }) }),
