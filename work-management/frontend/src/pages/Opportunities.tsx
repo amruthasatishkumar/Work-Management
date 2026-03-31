@@ -10,7 +10,6 @@ import { Modal, FormField, Input, Select, Textarea } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Opportunity, Account, Territory, Activity } from '../lib/types';
 
-const OPP_STATUSES = ['Active', 'In Progress', 'Committed', 'Not Active'];
 const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
 const ACT_STATUSES = ['To Do', 'In Progress', 'Completed', 'Blocked'];
 
@@ -325,6 +324,11 @@ export default function Opportunities() {
     queryFn: () => api.accounts.list(),
   });
 
+  const { data: oppStatuses = [] } = useQuery<string[]>({
+    queryKey: queryKeys.opportunities.statuses,
+    queryFn: api.opportunities.statuses,
+  });
+
   const filterParams = {
     territory_id: filterTerritory ? Number(filterTerritory) : undefined,
     account_id: filterAccount ? Number(filterAccount) : undefined,
@@ -360,7 +364,7 @@ export default function Opportunities() {
       <PageHeader
         title="Opportunities"
         subtitle="All opportunities across your territories"
-        action={<Button onClick={() => setShowForm(true)}><Plus size={14} /> Add Opportunity</Button>}
+        action={null}
       />
 
       {/* Cascading filters */}
@@ -380,7 +384,7 @@ export default function Opportunities() {
         </Select>
         <Select value={filterStatus} onChange={e => setFilter('status', e.target.value)} className="!w-36">
           <option value="">All statuses</option>
-          {OPP_STATUSES.map(s => <option key={s}>{s}</option>)}
+          {oppStatuses.map(s => <option key={s}>{s}</option>)}
         </Select>
         {(filterTerritory || filterAccount || filterStatus) && (
           <button

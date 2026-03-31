@@ -37,10 +37,13 @@ export const api = {
       if (params?.status) qs.set('status', params.status);
       return request<any[]>(`/opportunities?${qs}`);
     },
+    statuses: () => request<string[]>('/opportunities/statuses'),
     get: (id: number) => request<any>(`/opportunities/${id}`),
     create: (data: any) => request<any>('/opportunities', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: number, data: any) => request<any>(`/opportunities/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: number) => request<void>(`/opportunities/${id}`, { method: 'DELETE' }),
+    patchMgmtStatus: (id: number, mgmt_status: string, mgmt_position?: number) =>
+      request<any>(`/opportunities/${id}/mgmt-status`, { method: 'PATCH', body: JSON.stringify({ mgmt_status, mgmt_position }) }),
   },
   opportunityComments: {
     list: (oppId: number) => request<any[]>(`/opportunities/${oppId}/comments`),

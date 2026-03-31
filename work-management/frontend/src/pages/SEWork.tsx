@@ -248,8 +248,8 @@ export default function SEWork() {
 
       {isLoading ? <Spinner /> : (
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="p-6 flex-1">
-            <div className="grid grid-cols-4 gap-4">
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="grid grid-cols-4 gap-4 h-full">
               {SE_COLUMNS.map(col => (
                 <SEColumn
                   key={col.status}

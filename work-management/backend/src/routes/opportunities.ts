@@ -23,6 +23,12 @@ router.get('/', (req: Request, res: Response) => {
   res.json(db.prepare(query).all(...params));
 });
 
+// GET distinct statuses present in the DB
+router.get('/statuses', (_req: Request, res: Response) => {
+  const rows = db.prepare('SELECT DISTINCT status FROM opportunities ORDER BY status').all() as { status: string }[];
+  res.json(rows.map(r => r.status));
+});
+
 // GET single opportunity
 router.get('/:id', (req: Request, res: Response) => {
   const row = db.prepare(`
@@ -59,6 +65,26 @@ router.put('/:id', (req: Request, res: Response) => {
   `).run(account_id, title.trim(), description ?? null, link ?? null, status ?? 'Active', next_steps ?? null, req.params.id);
   if (info.changes === 0) return res.status(404).json({ error: 'Opportunity not found' });
   res.json(db.prepare('SELECT * FROM opportunities WHERE id = ?').get(req.params.id));
+});
+
+// PATCH plan_of_action
+router.patch('/:id/plan-of-action', (req: Request, res: Response) => {
+  const { plan_of_action } = req.body;
+  const info = db.prepare(`
+    UPDATE opportunities SET plan_of_action = ?, updated_at = datetime('now') WHERE id = ?
+  `).run(plan_of_action ?? null, req.params.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Opportunity not found' });
+  res.json({ ok: true });
+});
+
+// PATCH mgmt_status — opportunity kanban board
+router.patch('/:id/mgmt-status', (req: Request, res: Response) => {
+  const { mgmt_status, mgmt_position } = req.body;
+  const info = db.prepare(`
+    UPDATE opportunities SET mgmt_status = ?, mgmt_position = ?, updated_at = datetime('now') WHERE id = ?
+  `).run(mgmt_status ?? 'Unassigned', mgmt_position ?? 0, req.params.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Opportunity not found' });
+  res.json({ ok: true });
 });
 
 // DELETE opportunity

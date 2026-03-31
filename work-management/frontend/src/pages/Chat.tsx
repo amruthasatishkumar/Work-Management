@@ -208,23 +208,6 @@ export default function Chat() {
             </p>
           </div>
         </div>
-
-        {/* Suggested questions sidebar */}
-        <aside className="w-64 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shrink-0 overflow-y-auto">
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Suggested questions</p>
-          <div className="space-y-2">
-            {STARTERS.map(s => (
-              <button
-                key={s}
-                onClick={() => send(s)}
-                disabled={loading}
-                className="w-full text-left text-sm text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-slate-200 dark:border-slate-600 hover:border-blue-200 dark:hover:border-blue-700 rounded-lg px-3 py-2.5 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </aside>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ export const queryKeys = {
   opportunities: {
     all: (params?: { territory_id?: number; account_id?: number; status?: string }) =>
       ['opportunities', params] as const,
+    statuses: ['opportunities', 'statuses'] as const,
     detail: (id: number) => ['opportunities', 'detail', id] as const,
   },
   opportunityComments: {

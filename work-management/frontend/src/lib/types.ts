@@ -15,6 +15,7 @@ export interface Account {
   name: string;
   website: string | null;
   notes: string | null;
+  plan_of_action: string | null;
   tpid: number | null;
   msx_id: string | null;
   created_at: string;
@@ -32,6 +33,9 @@ export interface Opportunity {
   description: string | null;
   link: string | null;
   status: 'Committed' | 'In Progress' | 'Active' | 'Not Active';
+  mgmt_status?: 'Unassigned' | 'Targeted' | 'In Progress' | 'Committed';
+  mgmt_position?: number;
+  plan_of_action?: string | null;
   msx_id: string | null;
   solution_play: string | null;
   created_at: string;

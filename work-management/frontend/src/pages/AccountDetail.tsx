@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, Trash2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, ExternalLink, Check } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { Button, Badge, statusVariant, Spinner } from '../components/ui';
@@ -10,6 +10,49 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Account, Opportunity, Activity } from '../lib/types';
 
 const OPP_STATUSES = ['Active', 'In Progress', 'Committed', 'Not Active'];
+
+// ─── Plan of Action inline editor ─────────────────────────────────────────────
+function PlanOfActionPanel({ accountId, initial }: { accountId: number; initial: string }) {
+  const [text, setText] = useState(initial);
+  const [saved, setSaved] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveNow = useCallback(async (value: string) => {
+    await fetch(`/api/accounts/${accountId}/plan-of-action`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan_of_action: value || null }),
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }, [accountId]);
+
+  const handleChange = (value: string) => {
+    setText(value);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveNow(value), 800);
+  };
+
+  return (
+    <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Plan of Action</h3>
+        {saved && (
+          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+            <Check size={11} /> Saved
+          </span>
+        )}
+      </div>
+      <textarea
+        value={text}
+        onChange={e => handleChange(e.target.value)}
+        placeholder="Outline your plan of action for this account…"
+        rows={4}
+        className="w-full text-sm text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 resize-y placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+  );
+}
 const ACT_TYPES = ['Demo', 'POC', 'Meeting', 'Architecture Review', 'Other', 'Task', 'Follow Up'];
 const ACT_STATUSES = ['Planned', 'In Progress', 'Completed', 'Cancelled'];
 
@@ -159,6 +202,9 @@ export default function AccountDetail() {
         </div>
         {account?.notes && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{account.notes}</p>}
       </div>
+
+      {/* Plan of Action */}
+      {account && <PlanOfActionPanel accountId={accountId} initial={account.plan_of_action ?? ''} />}
 
       <div className="p-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Opportunities */}

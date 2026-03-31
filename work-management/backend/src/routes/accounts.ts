@@ -70,6 +70,16 @@ router.put('/:id', (req: Request, res: Response) => {
   res.json(db.prepare('SELECT * FROM accounts WHERE id = ?').get(req.params.id));
 });
 
+// PATCH plan_of_action — lightweight endpoint so AccountDetail can save without full PUT
+router.patch('/:id/plan-of-action', (req: Request, res: Response) => {
+  const { plan_of_action } = req.body;
+  const info = db.prepare(`
+    UPDATE accounts SET plan_of_action = ?, updated_at = datetime('now') WHERE id = ?
+  `).run(plan_of_action ?? null, req.params.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Account not found' });
+  res.json({ ok: true });
+});
+
 // DELETE account
 router.delete('/:id', (req: Request, res: Response) => {
   const info = db.prepare('DELETE FROM accounts WHERE id = ?').run(req.params.id);

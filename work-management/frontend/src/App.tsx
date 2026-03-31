@@ -10,6 +10,7 @@ import OpportunityMilestones from './pages/OpportunityMilestones';
 import Activities from './pages/Activities';
 import ActivityDetail from './pages/ActivityDetail';
 import Tasks from './pages/Tasks';
+import OpportunityManagement from './pages/OpportunityManagement';
 import SEWork from './pages/SEWork';
 import Chat from './pages/Chat';
 import MSXImport from './pages/MSXImport';
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="activities" element={<Activities />} />
           <Route path="activities/:id" element={<ActivityDetail />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="opportunity-management" element={<OpportunityManagement />} />
           <Route path="se-work" element={<SEWork />} />
           <Route path="chat" element={<Chat />} />
           <Route path="msx-import" element={<MSXImport />} />

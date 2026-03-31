@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, CheckSquare, Square, ExternalLink, X, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, CheckSquare, Square, ExternalLink, X, BarChart3, Check } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { Button, Badge, statusVariant, Spinner } from '../components/ui';
@@ -13,6 +13,49 @@ import type { Opportunity, Activity } from '../lib/types';
 
 const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
 const ACT_STATUSES = ['To Do', 'In Progress', 'Completed', 'Blocked'];
+
+// ─── Plan of Action inline editor ─────────────────────────────────────────────
+function PlanOfActionPanel({ oppId, initial }: { oppId: number; initial: string }) {
+  const [text, setText] = useState(initial);
+  const [saved, setSaved] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveNow = useCallback(async (value: string) => {
+    await fetch(`/api/opportunities/${oppId}/plan-of-action`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan_of_action: value || null }),
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }, [oppId]);
+
+  const handleChange = (value: string) => {
+    setText(value);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveNow(value), 800);
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Plan of Action</h3>
+        {saved && (
+          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+            <Check size={11} /> Saved
+          </span>
+        )}
+      </div>
+      <textarea
+        value={text}
+        onChange={e => handleChange(e.target.value)}
+        placeholder="Outline your plan of action for this opportunity…"
+        rows={4}
+        className="w-full text-sm text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 resize-y placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+  );
+}
 
 function ActivityForm({ initial, oppAccountId, oppId, onSubmit, onClose, loading }: {
   initial?: Partial<Activity>;
@@ -219,6 +262,9 @@ export default function OpportunityDetail() {
           </button>
         )}
       </div>
+
+      {/* Plan of Action */}
+      <PlanOfActionPanel oppId={Number(oppId)} initial={opp.plan_of_action ?? ''} />
 
       {/* Activities */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">

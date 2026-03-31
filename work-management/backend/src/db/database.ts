@@ -392,6 +392,27 @@ function runMigrations() {
   if (!ocCols.some((c: any) => c.name === 'msx_id')) {
     db.exec('ALTER TABLE opportunity_comments ADD COLUMN msx_id TEXT');
   }
+
+  // 15. Add plan_of_action to accounts
+  const accColsPoa = db.prepare('PRAGMA table_info(accounts)').all() as any[];
+  if (!accColsPoa.some((c: any) => c.name === 'plan_of_action')) {
+    db.exec('ALTER TABLE accounts ADD COLUMN plan_of_action TEXT');
+  }
+
+  // 16. Add mgmt_status and mgmt_position to opportunities (opportunity kanban board)
+  const oppColsMgmt = db.prepare('PRAGMA table_info(opportunities)').all() as any[];
+  if (!oppColsMgmt.some((c: any) => c.name === 'mgmt_status')) {
+    db.exec("ALTER TABLE opportunities ADD COLUMN mgmt_status TEXT DEFAULT 'Unassigned'");
+  }
+  if (!oppColsMgmt.some((c: any) => c.name === 'mgmt_position')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN mgmt_position INTEGER DEFAULT 0');
+  }
+
+  // 17. Add plan_of_action to opportunities
+  const oppColsPoa = db.prepare('PRAGMA table_info(opportunities)').all() as any[];
+  if (!oppColsPoa.some((c: any) => c.name === 'plan_of_action')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN plan_of_action TEXT');
+  }
 }
 
 runMigrations();
