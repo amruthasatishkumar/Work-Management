@@ -1,50 +1,159 @@
 # SE Work Manager
 
-A Windows desktop app for Solution Engineers to manage territories, accounts, MSX opportunities, customer activities, tasks, and SE work — with MSX import, live sync, and an AI assistant.
+A Windows desktop app for Solution Engineers to manage territories, accounts, MSX opportunities, customer activities, milestones, tasks, and SE work — with live MSX sync, an AI assistant, and GitHub Copilot integration via MCP.
 
-## Download (Windows)
+## Download & Install (Windows)
 
 **[⬇ Download the latest release (Windows)](https://github.com/amruthasatishkumar/Work-Management/releases/latest)**
 
-See the [Installation Guide](docs/INSTALLATION.md) for step-by-step setup instructions.
+Download the `.exe` installer, run it, and the app installs and launches automatically. Updates are delivered silently in the background — you'll see a prompt to restart when one is ready.
 
 ---
 
-## Features
+## How to Use
 
-- **Territories & Accounts** — Organise accounts by territory with full CRUD
-- **Opportunities** — Track deal status (Active / In Progress / Committed / Not Active) with comments, next steps, and completion tracking
-- **Activities** — Log customer-facing activities (Demo, Meeting, POC, Architecture Review, Follow up Meeting) with due dates, completion dates, and status (To Do / In Progress / Completed / Blocked)
-- **Activity Management** — Kanban board for activities: three columns (In Progress / Completed / Blocked) with a To Do sidebar; drag and drop to update status
-- **SE Work** — Kanban board for internal SE tasks with drag-and-drop reordering
-- **Dashboard** — At-a-glance stats (Territories, Accounts, Active Opportunities, Remaining Activities, SE Work Not Started, SE Work In Progress) with quick navigation to remaining activities and active opportunities
-- **AI Assistant** — Natural language chat interface powered by GitHub Models (GPT-4o mini) with function calling for real-time data queries. Chat history persists for the browser session.
+### First launch
+
+When you first open the app you'll land on the **Dashboard**. It's empty until you either manually add data or import from MSX. For most SEs, **MSX Import** is the fastest way to get started.
 
 ---
 
-## Tech Stack
+### MSX Import
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript + Vite |
-| Styling | Tailwind CSS |
-| State / Data | TanStack Query |
-| Drag & Drop | @dnd-kit |
-| Backend | Node.js + Express + TypeScript |
-| Database | SQLite (Node.js built-in `node:sqlite`, v22+) |
-| AI | OpenAI SDK → GitHub Models (`gpt-4o-mini`) |
-| MCP Server | `@modelcontextprotocol/sdk` for GitHub Copilot integration |
+Open **MSX Import** from the left nav. The status indicator at the top shows whether your MSX token is valid. If it shows red, open a terminal and run `az login`, then reload.
+
+**Three ways to import:**
+
+| Method | How |
+|--------|-----|
+| **By TPID** | Paste one or more TPIDs (comma-separated). Pulls the parent account and all open opportunities for each TPID. |
+| **By URL** | Paste a direct MSX opportunity URL or bare GUID to import a single opportunity and its parent account. |
+| **Deal Team** | Click "Load My Deal Teams" to pull every open opportunity where you are on the deal team. |
+
+After loading, a preview shows accounts → opportunities → activities → comments → milestones. Select what you want and click **Import Selected**. Duplicate opportunities already in your local database are skipped automatically.
+
+> Use the **refresh button** on any Opportunity detail page to re-pull the latest comments, activities, and milestones from MSX at any time.
 
 ---
 
-## Getting Started
+### Dashboard
+
+Live snapshot of your work:
+
+- **Stats** — Territories, Accounts, Total Opportunities, Active Opportunities, Total Activities, Remaining Activities, SE Work Not Started, SE Work In Progress
+- **Remaining Activities** — incomplete activities sorted by due date, click any to open
+- **Active Opportunities** — current open deals, click any to open the detail page
+
+---
+
+### Territories
+
+Top level of the data hierarchy. Every account belongs to a territory.
+
+- Add, rename, or delete territories
+- Deleting a territory cascades — removes all accounts, opportunities, and activities underneath it
+
+---
+
+### Accounts
+
+Accounts sit under territories and link to opportunities and activities.
+
+- Filter the list by territory
+- Click an account to open its **detail page**, which shows:
+  - All opportunities for that account
+  - Recent activities
+  - **Plan of Action** — a freeform notes field for your strategic thoughts on this account
+- Accounts imported from MSX also store the TPID and MSX account ID for sync
+
+---
+
+### Opportunities
+
+All deals across your territories.
+
+- **Cascading filters** — Territory → Account → Status. Statuses are pulled dynamically from your actual data.
+- Click an opportunity title to open its **detail page**:
+  - Description, link, solution play, status, estimated close date
+  - **Comments** — forecast comments imported from MSX
+  - **Next Steps** — action items with completion tracking
+  - **Plan of Action** — freeform notes field
+  - **View Milestones** button — opens the live D365 milestone view for this opportunity
+  - **MSX refresh button** — re-syncs comments, activities, and milestones from D365
+
+#### Milestone View (per Opportunity)
+
+Opened via **View Milestones** on any opportunity. Requires a valid MSX token.
+
+- Fetches milestones live from D365 — shows milestone number, name, workload, commitment, category, status, date, and owner
+- **Join / Leave team** — add or remove yourself from the milestone team directly
+- **Create HoK Task** — create a D365 task linked to a milestone, with task category and due date
+- Filter by milestone name or status
+- Syncs `on_team` status back to your local database so the AI assistant can reference it
+
+---
+
+### Activities
+
+Customer-facing activities linked to accounts or opportunities.
+
+- **Types**: Demo, Meeting, POC, Architecture Review, Follow up Meeting, Other
+- **Statuses**: To Do, In Progress, Completed, Blocked
+- **Filters**: type, status, or opportunity
+- Click an activity to open its detail page with notes, comments, and full history
+- **Push to MSX** — syncs the activity as a D365 task linked to its opportunity
+- **Delete from MSX** — removes the D365 task (only tasks you created)
+
+---
+
+### Activity Management (Kanban)
+
+Kanban board view of all activities.
+
+- **Columns**: To Do sidebar → In Progress → Completed → Blocked
+- Drag cards between columns to update status
+- Drag within a column to reorder
+
+---
+
+### SE Work
+
+Internal SE tasks not tied to a specific customer account.
+
+- **Statuses**: Not Started, In Progress, Blocked, Done
+- Full kanban layout with drag-and-drop reorder within each column
+
+---
+
+### AI Assistant
+
+Natural language chat powered by **GitHub Models (GPT-4o mini)** with function calling.
+
+Ask questions about your data in plain English:
+
+> *"Which accounts haven't had any activity this month?"*  
+> *"Show me all Committed opportunities"*  
+> *"What's due this week?"*  
+> *"Summarise my SE Work in progress"*
+
+The assistant queries your live local database to answer — no data is sent to a third party beyond the question text. Requires a GitHub Models personal access token configured in the backend `.env`.
+
+---
+
+### Auto-updater
+
+The app checks for new GitHub releases on startup. When an update is downloaded a banner appears in the sidebar — click **Restart & Update** to apply it, or it applies automatically on next launch.
+
+---
+
+## Installation from Source
 
 ### Prerequisites
 
 - Node.js v22+
 - A [GitHub Models](https://github.com/marketplace/models) personal access token with model inference access
 
-### 1. Clone the repo
+### 1. Clone
 
 ```bash
 git clone https://github.com/amruthasatishkumar/Work-Management.git
@@ -62,43 +171,19 @@ GITHUB_TOKEN=your_github_pat_here
 ### 3. Install dependencies
 
 ```bash
-# Backend
-cd work-management/backend
-npm install
-
-# Frontend
-cd ../frontend
-npm install
-
-# MCP server
-cd ../../mcp-server
-npm install
+cd work-management/backend && npm install
+cd ../frontend && npm install
+cd ../../mcp-server && npm install
 ```
 
-### 4. Start the app
-
-#### Option A — Silent background launch (recommended, no terminals)
-
-Double-click **`Start App.vbs`** from the repo root or Windows Explorer.
-
-- Starts both the backend (port 3001) and frontend (port 5173) silently in the background — no terminal windows appear
-- Automatically opens [http://localhost:5173](http://localhost:5173) in your default browser after ~9 seconds
-- Works without VS Code being open
-
-> **Tip:** Right-click `Start App.vbs` → *Send to → Desktop (create shortcut)* for a one-click launch from your desktop.
-
-#### Option B — Visible terminals (useful for debugging)
-
-Double-click **`Start App.bat`** — opens two terminal windows (one for backend, one for frontend) and then opens the browser.
-
-#### Option C — Manual start
+### 4. Run
 
 ```bash
-# Terminal 1 — backend
+# Terminal 1 — backend (port 3001)
 cd work-management/backend
 npm run dev
 
-# Terminal 2 — frontend
+# Terminal 2 — frontend (port 5173)
 cd work-management/frontend
 npm run dev
 ```
@@ -110,44 +195,58 @@ Open [http://localhost:5173](http://localhost:5173)
 ## Project Structure
 
 ```
-work-management/
-├── backend/          # Express API + SQLite database
-│   ├── src/
-│   │   ├── routes/   # REST endpoints + AI chat route
-│   │   └── db/       # Database setup & migrations
-│   └── data/         # SQLite database file (gitignored)
-├── frontend/         # React + Vite SPA
-│   └── src/
-│       ├── pages/    # Dashboard, Territories, Accounts, Opportunities, Activities, Chat…
-│       ├── components/
-│       └── lib/      # API client, types, query keys
-└── mcp-server/       # MCP server for GitHub Copilot integration
+Work-Management/
+├── electron/                   # Electron main process + preload
+├── work-management/
+│   ├── backend/                # Express API + SQLite database
+│   │   ├── src/
+│   │   │   ├── routes/         # accounts, opportunities, activities, milestones,
+│   │   │   │                     msx, se-work, tasks, chat, dashboard
+│   │   │   └── db/             # database.ts — schema + migrations
+│   │   └── data/               # SQLite .db file (gitignored)
+│   ├── frontend/               # React 18 + Vite SPA
+│   │   └── src/
+│   │       ├── pages/          # One file per page/view
+│   │       ├── components/     # Layout, shared UI, panels
+│   │       └── lib/            # api.ts, types.ts, queryKeys.ts
+│   └── mcp-server/             # MCP server for GitHub Copilot integration
+├── electron-builder.yml        # Electron build + release config
+└── package.json                # Root entry point
 ```
 
 ---
 
-## Using with GitHub Copilot
+## Tech Stack
 
-The app includes an MCP (Model Context Protocol) server that connects your live work-management data directly to GitHub Copilot in VS Code. You can ask Copilot questions about your accounts, opportunities, activities, tasks, and SE Work without leaving your editor.
+| Layer | Technology |
+|-------|-----------|
+| Desktop shell | Electron |
+| Frontend | React 18 + TypeScript + Vite |
+| Styling | Tailwind CSS |
+| State / Data fetching | TanStack Query |
+| Drag & Drop | @dnd-kit |
+| Backend | Node.js + Express + TypeScript |
+| Database | SQLite (`node-sqlite3-wasm`) |
+| AI Assistant | OpenAI SDK → GitHub Models (`gpt-4o-mini`) |
+| MSX / D365 | Microsoft Dynamics 365 OData v9.2 API |
+| MCP Server | `@modelcontextprotocol/sdk` — GitHub Copilot integration |
 
-### Prerequisites
+---
 
-- [GitHub Copilot](https://github.com/features/copilot) subscription (Individual, Business, or Enterprise)
-- VS Code with the **GitHub Copilot** extension installed
-- The app already running locally (backend on port 3001, see [Getting Started](#getting-started))
+## Using with GitHub Copilot (MCP)
 
-### Setup Steps
+The app ships with an MCP server that connects your live data directly to GitHub Copilot in VS Code.
 
-**1. Clone and install the MCP server dependencies**
+### Setup
+
+**1. Install MCP server dependencies**
 
 ```bash
 cd work-management/mcp-server
 npm install
 ```
 
-**2. Verify the MCP server is registered**
-
-The `.vscode/mcp.json` file in this repo already configures the server for VS Code:
+**2. The MCP config is already committed** — `.vscode/mcp.json` registers the server automatically:
 
 ```json
 {
@@ -161,42 +260,23 @@ The `.vscode/mcp.json` file in this repo already configures the server for VS Co
 }
 ```
 
-This file is committed to the repo, so no manual configuration is needed after cloning.
+**3. Enable it**: `Ctrl+Shift+P` → **MCP: List Servers** → confirm `work-management` is running.
 
-**3. Start the backend** (required — the MCP server reads the same SQLite database)
+**4. Ask Copilot in Agent mode:**
 
-```bash
-cd work-management/backend
-npm run dev
-```
-
-Or use `Start App.vbs` (silent) or `Start App.bat` (with terminals) to start everything at once.
-
-**4. Enable the MCP server in VS Code**
-
-- Open the Command Palette (`Ctrl+Shift+P`)
-- Run **"MCP: List Servers"** and confirm `work-management` appears
-- If it shows as stopped, click **Start**
-
-**5. Ask Copilot about your data**
-
-Open GitHub Copilot Chat (`Ctrl+Alt+I`) and switch to **Agent mode** (`@` → select the agent, or use the mode dropdown). Then ask naturally:
-
-> *"Which accounts have had no activity in the last 30 days?"*
-> *"Show me all Committed opportunities"*
-> *"What activities are due this week?"*
+> *"Which accounts have had no activity in the last 30 days?"*  
+> *"Show me all Committed opportunities"*  
+> *"What activities are due this week?"*  
 > *"Give me a summary of my SE Work"*
-
-Copilot will use the MCP tools to query your live database and return real-time answers.
 
 ### Available MCP Tools
 
 | Tool | What it does |
 |------|-------------|
-| `get_dashboard_summary` | Counts across opportunities, activities, and SE Work |
+| `get_dashboard_summary` | Stats across opportunities, activities, and SE Work |
 | `list_accounts` | All accounts, filterable by territory or name |
-| `get_account` | Full detail for one account (opps, activities, next steps) |
-| `list_opportunities` | Opportunities by status and/or account |
-| `list_activities` | Activities by status, type, account, or due date range |
+| `get_account` | Full detail for one account including opps and activities |
+| `list_opportunities` | Opportunities filterable by status and/or account |
+| `list_activities` | Activities filterable by status, type, account, or date range |
 | `list_se_work` | SE Work items by status |
 | `find_accounts_without_recent_activity` | Accounts with no activity in the last N days |
