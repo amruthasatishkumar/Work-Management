@@ -19,6 +19,7 @@ import dashboardRouter         from './routes/dashboard';
 import seWorkRouter            from './routes/seWork';
 import chatRouter              from './routes/chat';
 import msxRouter               from './routes/msx';
+import milestonesRouter        from './routes/milestones';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +43,7 @@ app.use('/api/tasks',                                tasksRouter);
 app.use('/api/se-work',                              seWorkRouter);
 app.use('/api/chat',                                 chatRouter);
 app.use('/api/msx',                                  msxRouter);
+app.use('/api/milestones',                           milestonesRouter);
 
 // Serve compiled frontend in production (Electron bundles the built frontend)
 if (isProd) {

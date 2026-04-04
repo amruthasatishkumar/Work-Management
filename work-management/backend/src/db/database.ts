@@ -356,6 +356,12 @@ function runMigrations() {
   if (!ocCols.some((c: any) => c.name === 'msx_id')) {
     db.exec('ALTER TABLE opportunity_comments ADD COLUMN msx_id TEXT');
   }
+
+  // 18. Add on_team to opportunity_milestones
+  const milCols = db.prepare('PRAGMA table_info(opportunity_milestones)').all() as any[];
+  if (!milCols.some((c: any) => c.name === 'on_team')) {
+    db.exec('ALTER TABLE opportunity_milestones ADD COLUMN on_team INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 runMigrations();
