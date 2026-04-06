@@ -213,8 +213,15 @@ async function startEmbeddedBackend(dbPath) {
   process.env.PORT = '3001';
   process.env.NODE_ENV = 'production';
 
-  // Require the compiled backend entrypoint — starts Express automatically
-  require(path.join(__dirname, '..', 'work-management', 'backend', 'dist', 'index.js'));
+  const backendPath = path.join(__dirname, '..', 'work-management', 'backend', 'dist', 'index.js');
+  try {
+    // Require the compiled backend entrypoint — starts Express automatically
+    require(backendPath);
+  } catch (err) {
+    const msg = err && err.stack ? err.stack : String(err);
+    try { fs.appendFileSync(path.join(app.getPath('userData'), 'startup.log'), `[${new Date().toISOString()}] step5 BACKEND REQUIRE ERROR: ${msg}\n`); } catch {}
+    throw err;
+  }
 
   // Give Express a moment to bind before we open the window
   await new Promise(r => setTimeout(r, 1000));
