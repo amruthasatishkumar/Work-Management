@@ -387,4 +387,16 @@ function showFatalError(err) {
 process.on('uncaughtException', (err) => showFatalError(err));
 process.on('unhandledRejection', (reason) => showFatalError(reason instanceof Error ? reason : new Error(String(reason))));
 
-main();
+// Prevent multiple instances — if one is already running, focus it and quit this one
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+  main();
+}
