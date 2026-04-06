@@ -11,7 +11,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({ message, onConfirm, onCancel, loading }: ConfirmDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-sm mx-4 p-5">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5">
         <div className="flex items-start gap-3">
           <AlertTriangle size={20} className="text-red-500 mt-0.5 shrink-0" />
           <p className="text-sm text-slate-700 dark:text-slate-300">{message}</p>

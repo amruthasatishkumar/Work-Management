@@ -14,18 +14,20 @@ import {
   Sun,
   Cloud,
   CloudOff,
+  Flag,
 } from 'lucide-react';
 
 const NAV = [
-  { to: '/dashboard',    label: 'Dashboard',     Icon: LayoutDashboard },
-  { to: '/territories',  label: 'Territories',   Icon: Map },
-  { to: '/accounts',     label: 'Accounts',      Icon: Building2 },
-  { to: '/opportunities',label: 'Opportunities', Icon: TrendingUp },
-  { to: '/activities',   label: 'Activities',    Icon: Zap },
-  { to: '/tasks',        label: 'Activity Management', Icon: CheckSquare },
-  { to: '/se-work',      label: 'SE Work',       Icon: BriefcaseBusiness },
-  { to: '/chat',          label: 'Assistant',     Icon: Bot },
-  { to: '/msx-import',   label: 'MSX Import',    Icon: Download },
+  { to: '/dashboard',          label: 'Dashboard',           Icon: LayoutDashboard },
+  { to: '/territories',        label: 'Territories',         Icon: Map },
+  { to: '/accounts',           label: 'Accounts',            Icon: Building2 },
+  { to: '/opportunities',      label: 'Opportunities',       Icon: TrendingUp },
+  { to: '/milestones',         label: 'Milestones',          Icon: Flag },
+  { to: '/activities',         label: 'Activities',          Icon: Zap },
+  { to: '/tasks',              label: 'Activity Management', Icon: CheckSquare },
+  { to: '/se-work',            label: 'SE Work',             Icon: BriefcaseBusiness },
+  { to: '/chat',               label: 'Assistant',           Icon: Bot },
+  { to: '/msx-import',         label: 'MSX Import',          Icon: Download },
 ];
 
 interface BackupStatus {
@@ -63,23 +65,30 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 dark:bg-slate-950 overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 bg-slate-900 text-slate-100 flex flex-col">
-        <div className="px-5 py-[26px] border-b border-slate-700">
-          <h1 className="text-base font-semibold text-white leading-tight">SE Work Manager</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Customer & Task Hub</p>
+      <aside className="w-60 flex-shrink-0 bg-purple-950 text-purple-100 flex flex-col">
+        <div className="px-5 py-[26px] border-b border-purple-900/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-fuchsia-500 to-purple-700 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-xs font-bold">SE</span>
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-white leading-tight">SE Work Manager</h1>
+              <p className="text-xs text-purple-400 mt-0.5">Customer & Task Hub</p>
+            </div>
+          </div>
         </div>
-        <nav className="flex-1 py-3">
+        <nav className="flex-1 py-3 px-2">
           {NAV.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all mb-0.5 ${
                   isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-fuchsia-600/80 text-white shadow-sm'
+                    : 'text-purple-300/80 hover:bg-purple-900/80 hover:text-purple-50'
                 }`
               }
             >
@@ -90,11 +99,11 @@ export default function Layout() {
         </nav>
         {/* OneDrive backup status */}
         {backupStatus !== null && (
-          <div className="px-4 pb-2">
+          <div className="px-3 pb-2">
             <div
               className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs ${
                 backupStatus.connected
-                  ? 'bg-slate-800 text-slate-300'
+                  ? 'bg-purple-900/50 text-purple-300'
                   : 'bg-amber-900/40 text-amber-300'
               }`}
             >
@@ -110,10 +119,10 @@ export default function Layout() {
           </div>
         )}
         {/* Dark mode toggle */}
-        <div className="px-4 py-3 border-t border-slate-700">
+        <div className="px-3 py-3 border-t border-purple-900/60">
           <button
             onClick={() => setDark(d => !d)}
-            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-purple-300/80 hover:bg-purple-900/80 hover:text-purple-50 text-sm font-medium transition-all cursor-pointer"
           >
             {dark ? <Sun size={15} /> : <Moon size={15} />}
             {dark ? 'Light mode' : 'Dark mode'}

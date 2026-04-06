@@ -115,4 +115,15 @@ export const api = {
     dealTeamOpps: () =>
       request<Array<{ account: any; tpid: number; opp: any }>>('/msx/deal-team-opps', { method: 'POST', body: '{}' }),
   },
+  milestones: {
+    list: (params?: { on_team?: boolean | string; opportunity_id?: number; account_id?: number; territory_id?: number }) => {
+      const mapped = params ? Object.fromEntries(
+        Object.entries(params)
+          .filter(([, v]) => v != null)
+          .map(([k, v]) => [k, k === 'on_team' ? (v ? '1' : '0') : String(v)])
+      ) : {};
+      const qs = Object.keys(mapped).length ? '?' + new URLSearchParams(mapped).toString() : '';
+      return request<any[]>(`/milestones${qs}`);
+    },
+  },
 };

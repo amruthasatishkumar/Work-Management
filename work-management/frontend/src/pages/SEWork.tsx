@@ -128,7 +128,7 @@ function SEColumn({ column, items, onAddItem, onEditItem, onDeleteItem, activeId
 
   return (
     <div ref={setNodeRef}
-         className={`flex flex-col rounded-xl border ${column.color} ${column.darkColor} min-h-64 transition-all ${isOver ? 'ring-2 ring-blue-400 ring-offset-1' : ''} w-full min-w-0`}>
+         className={`flex flex-col rounded-xl border ${column.color} ${column.darkColor} h-full transition-all ${isOver ? 'ring-2 ring-blue-400 ring-offset-1' : ''} w-full min-w-0`}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-inherit">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{column.label}</span>
@@ -142,7 +142,7 @@ function SEColumn({ column, items, onAddItem, onEditItem, onDeleteItem, activeId
         </button>
       </div>
       <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-2 p-3 flex-1">
+        <div className="flex flex-col gap-2 p-3 flex-1 overflow-y-auto">
           {items.map(item => (
             <SEWorkCard
               key={item.id}
@@ -248,8 +248,8 @@ export default function SEWork() {
 
       {isLoading ? <Spinner /> : (
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="p-6 flex-1">
-            <div className="grid grid-cols-4 gap-4">
+          <div className="p-6 flex-1 overflow-hidden flex flex-col">
+            <div className="grid grid-cols-4 gap-4 flex-1 min-h-0">
               {SE_COLUMNS.map(col => (
                 <SEColumn
                   key={col.status}

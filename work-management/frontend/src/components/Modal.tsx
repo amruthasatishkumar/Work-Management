@@ -26,7 +26,7 @@ export function Modal({ title, onClose, children, size = 'md' }: ModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className={`bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full mx-4 ${sizeMap[size]}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full mx-4 ${sizeMap[size]}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
           <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">

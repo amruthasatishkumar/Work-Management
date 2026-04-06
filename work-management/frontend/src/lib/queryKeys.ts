@@ -33,4 +33,7 @@ export const queryKeys = {
   seWork: {
     all: (status?: string) => ['se-work', status] as const,
   },
+  milestones: {
+    all: (params?: Record<string, unknown>) => ['milestones', params] as const,
+  },
 };

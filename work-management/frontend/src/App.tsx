@@ -11,6 +11,7 @@ import Activities from './pages/Activities';
 import ActivityDetail from './pages/ActivityDetail';
 import Tasks from './pages/Tasks';
 import SEWork from './pages/SEWork';
+import Milestones from './pages/Milestones';
 import Chat from './pages/Chat';
 import MSXImport from './pages/MSXImport';
 
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="activities/:id" element={<ActivityDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="se-work" element={<SEWork />} />
+          <Route path="milestones" element={<Milestones />} />
           <Route path="chat" element={<Chat />} />
           <Route path="msx-import" element={<MSXImport />} />
         </Route>

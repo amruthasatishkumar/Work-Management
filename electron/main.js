@@ -215,7 +215,9 @@ async function startEmbeddedBackend(dbPath) {
 
   const backendPath = path.join(__dirname, '..', 'work-management', 'backend', 'dist', 'index.js');
   try {
-    // Require the compiled backend entrypoint — starts Express automatically
+    // Require the compiled backend entrypoint — starts Express automatically.
+    // If port 3001 is already in use (e.g. a previous crash left the backend running)
+    // the backend handles EADDRINUSE gracefully without throwing.
     require(backendPath);
   } catch (err) {
     const msg = err && err.stack ? err.stack : String(err);
@@ -223,8 +225,23 @@ async function startEmbeddedBackend(dbPath) {
     throw err;
   }
 
-  // Give Express a moment to bind before we open the window
-  await new Promise(r => setTimeout(r, 1000));
+  // Poll until the server responds (handles both fresh start AND port-already-in-use cases).
+  // Timeout after 10 seconds.
+  const http = require('http');
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 300));
+    const ok = await new Promise(resolve => {
+      const req = http.get('http://localhost:3001/api/dashboard', (res) => {
+        res.resume();
+        resolve(true);
+      });
+      req.on('error', () => resolve(false));
+      req.setTimeout(500, () => { req.destroy(); resolve(false); });
+    });
+    if (ok) return;
+  }
+  throw new Error('Backend did not become ready within 10 seconds');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -293,10 +310,9 @@ async function main() {
     log('step3: dbPath=' + dbPath);
 
     // 4. Check for GitHub token (AI assistant)
-    if (loadingWindow && !loadingWindow.isDestroyed()) {
-      loadingWindow.close();
-      loadingWindow = null;
-    }
+    // NOTE: Do NOT close the loading window here — closing it with no other window open
+    // triggers window-all-closed → app.quit() before the main window is created.
+    // The loading window is closed inside createMainWindow's ready-to-show handler.
     log('step4: checking github token');
     const config = loadConfig(userDataPath);
     if (!config.githubToken) {

@@ -78,6 +78,25 @@ export interface Activity {
   updated_at: string;
 }
 
+export interface Milestone {
+  id: number;
+  opportunity_id: number;
+  msx_id: string | null;
+  milestone_number: number | null;
+  name: string;
+  workload: string | null;
+  commitment: string | null;
+  category: string | null;
+  monthly_use: number | null;
+  milestone_date: string | null;
+  status: string | null;
+  owner: string | null;
+  on_team: number; // 0 | 1
+  opportunity_title?: string;
+  account_name?: string;
+  territory_name?: string;
+}
+
 export interface ActivityComment {
   id: number;
   activity_id: number;

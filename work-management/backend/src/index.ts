@@ -56,8 +56,19 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Work Management API running on http://localhost:${PORT}`);
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    // Port already in use — likely a previous instance's backend is still running.
+    // Don't crash; Electron's main.js will poll until the existing server responds.
+    console.warn(`[backend] Port ${PORT} already in use — will connect to existing server`);
+  } else {
+    // Rethrow unexpected errors
+    throw err;
+  }
 });
 
 export default app;
