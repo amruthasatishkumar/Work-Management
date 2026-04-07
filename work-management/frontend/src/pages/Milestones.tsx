@@ -6,8 +6,8 @@ import { PageHeader, Badge, Spinner, EmptyState, statusVariant } from '../compon
 
 export default function Milestones() {
   const { data: milestones = [], isLoading } = useQuery({
-    queryKey: queryKeys.milestones.all({ on_team: true }),
-    queryFn: () => api.milestones.list({ on_team: true }),
+    queryKey: queryKeys.milestones.all(),
+    queryFn: () => api.milestones.list(),
   });
 
   const formatDate = (d: string | null) => {
@@ -19,7 +19,7 @@ export default function Milestones() {
     <div>
       <PageHeader
         title="Milestones"
-        subtitle={`${milestones.length} milestone${milestones.length !== 1 ? 's' : ''} where you're on the deal team`}
+        subtitle={`${milestones.length} milestone${milestones.length !== 1 ? 's' : ''} across your opportunities`}
       />
 
       <div className="p-6">
@@ -28,7 +28,7 @@ export default function Milestones() {
         ) : milestones.length === 0 ? (
           <EmptyState
             title="No milestones found"
-            description="Milestones from opportunities where you're on the deal team will appear here"
+            description="Import opportunities from MSX to see their milestones here"
           />
         ) : (
           <div className="bg-white dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden shadow-sm">

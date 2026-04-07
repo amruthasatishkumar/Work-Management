@@ -15,6 +15,7 @@ export interface Account {
   name: string;
   website: string | null;
   notes: string | null;
+  description: string | null;
   tpid: number | null;
   msx_id: string | null;
   created_at: string;
@@ -30,6 +31,7 @@ export interface Opportunity {
   territory_name?: string;
   title: string;
   description: string | null;
+  planning: string | null;
   link: string | null;
   status: 'Committed' | 'In Progress' | 'Active' | 'Not Active';
   msx_id: string | null;

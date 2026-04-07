@@ -4,14 +4,18 @@ import db from '../db/database';
 const router = Router();
 
 router.get('/', (_req: Request, res: Response) => {
-  const territories = db.prepare('SELECT COUNT(*) as count FROM territories').get() as { count: number };
-  const accounts    = db.prepare('SELECT COUNT(*) as count FROM accounts').get() as { count: number };
-  const opps_total  = db.prepare('SELECT COUNT(*) as count FROM opportunities').get() as { count: number };
-  const opps_active = db.prepare("SELECT COUNT(*) as count FROM opportunities WHERE status='Active'").get() as { count: number };
-  const acts_total  = db.prepare('SELECT COUNT(*) as count FROM activities').get() as { count: number };
-  const acts_upcoming = db.prepare("SELECT COUNT(*) as count FROM activities WHERE status IN ('To Do','In Progress')").get() as { count: number };
-  const se_not_started = db.prepare("SELECT COUNT(*) as count FROM se_work WHERE status='Not Started'").get() as { count: number };
-  const se_inprogress   = db.prepare("SELECT COUNT(*) as count FROM se_work WHERE status='In Progress'").get() as { count: number };
+  // Single query for all counts — avoids 8 sequential synchronous DB calls
+  const stats = db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM territories)                                       AS territories,
+      (SELECT COUNT(*) FROM accounts)                                          AS accounts,
+      (SELECT COUNT(*) FROM opportunities)                                     AS opportunities_total,
+      (SELECT COUNT(*) FROM opportunities WHERE status='Active')               AS opportunities_active,
+      (SELECT COUNT(*) FROM activities)                                        AS activities_total,
+      (SELECT COUNT(*) FROM activities WHERE status IN ('To Do','In Progress')) AS activities_upcoming,
+      (SELECT COUNT(*) FROM se_work WHERE status='Not Started')                AS se_not_started,
+      (SELECT COUNT(*) FROM se_work WHERE status='In Progress')                AS se_inprogress
+  `).get() as any;
 
   // Recent activities (last 10)
   const recent_activities = db.prepare(`
@@ -47,14 +51,14 @@ router.get('/', (_req: Request, res: Response) => {
 
   res.json({
     stats: {
-      territories: territories.count,
-      accounts: accounts.count,
-      opportunities_total: opps_total.count,
-      opportunities_active: opps_active.count,
-      activities_total: acts_total.count,
-      activities_upcoming: acts_upcoming.count,
-      se_not_started: se_not_started.count,
-      se_inprogress: se_inprogress.count,
+      territories: stats.territories,
+      accounts: stats.accounts,
+      opportunities_total: stats.opportunities_total,
+      opportunities_active: stats.opportunities_active,
+      activities_total: stats.activities_total,
+      activities_upcoming: stats.activities_upcoming,
+      se_not_started: stats.se_not_started,
+      se_inprogress: stats.se_inprogress,
     },
     recent_activities,
     remaining_activities,

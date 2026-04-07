@@ -15,6 +15,8 @@ import {
   Cloud,
   CloudOff,
   Flag,
+  ArrowDownToLine,
+  RefreshCw,
 } from 'lucide-react';
 
 const NAV = [
@@ -52,6 +54,11 @@ export default function Layout() {
     (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)
   );
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<{
+    status: 'available' | 'downloading' | 'downloaded';
+    version?: string;
+    percent?: number;
+  } | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -62,6 +69,12 @@ export default function Layout() {
     const electronAPI = (window as any).electronAPI;
     if (!electronAPI?.getBackupStatus) return;
     electronAPI.getBackupStatus().then(setBackupStatus);
+  }, []);
+
+  useEffect(() => {
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI?.onUpdateStatus) return;
+    electronAPI.onUpdateStatus((data: any) => setUpdateStatus(data));
   }, []);
 
   return (
@@ -97,6 +110,34 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        {/* Auto-update banner */}
+        {updateStatus && updateStatus.status !== 'downloaded' && (
+          <div className="px-3 pb-2">
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs bg-amber-500/20 text-amber-300">
+              <ArrowDownToLine size={13} className="mt-0.5 flex-shrink-0 animate-bounce" />
+              <span>
+                Downloading update…
+                {updateStatus.percent != null && (
+                  <><br /><span className="text-amber-400">{updateStatus.percent}%</span></>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+        {updateStatus?.status === 'downloaded' && (
+          <div className="px-3 pb-2">
+            <button
+              onClick={() => (window as any).electronAPI?.installUpdate()}
+              className="w-full flex items-start gap-2 px-3 py-2 rounded-lg text-xs bg-green-500/20 text-green-300 hover:bg-green-500/30 transition-colors text-left cursor-pointer"
+            >
+              <RefreshCw size={13} className="mt-0.5 flex-shrink-0" />
+              <span>
+                Update ready<br />
+                <span className="text-green-400 underline">Restart to install</span>
+              </span>
+            </button>
+          </div>
+        )}
         {/* OneDrive backup status */}
         {backupStatus !== null && (
           <div className="px-3 pb-2">

@@ -3,6 +3,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { autoUpdater } = require('electron-updater');
 
 const isDev = process.env.ELECTRON_DEV === 'true';
 
@@ -226,13 +227,13 @@ async function startEmbeddedBackend(dbPath) {
   }
 
   // Poll until the server responds (handles both fresh start AND port-already-in-use cases).
-  // Timeout after 10 seconds.
+  // Timeout after 10 seconds. Use /api/health (tiny response) not /api/dashboard (runs 8 DB queries).
   const http = require('http');
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 300));
     const ok = await new Promise(resolve => {
-      const req = http.get('http://localhost:3001/api/dashboard', (res) => {
+      const req = http.get('http://localhost:3001/api/health', (res) => {
         res.resume();
         resolve(true);
       });
@@ -268,6 +269,10 @@ ipcMain.handle('backup:status', () => {
     }
   }
   return { connected, backupDir, lastBackup };
+});
+
+ipcMain.handle('update:install', () => {
+  autoUpdater.quitAndInstall();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,6 +346,36 @@ async function main() {
     createMainWindow();
     log('step6: main window created');
 
+    // 7. Check for updates in the background (production only)
+    if (!isDev) {
+      autoUpdater.autoDownload = true;
+      autoUpdater.autoInstallOnAppQuit = true;
+      autoUpdater.logger = { info: log, warn: log, error: log, debug: () => {} };
+
+      autoUpdater.on('update-available', (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', { status: 'available', version: info.version });
+        }
+      });
+      autoUpdater.on('download-progress', (p) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', { status: 'downloading', percent: Math.round(p.percent) });
+        }
+      });
+      autoUpdater.on('update-downloaded', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update:status', { status: 'downloaded' });
+        }
+      });
+      autoUpdater.on('error', (err) => {
+        log('auto-updater error: ' + (err && err.message ? err.message : String(err)));
+      });
+
+      autoUpdater.checkForUpdates().catch((err) => {
+        log('checkForUpdates failed: ' + (err && err.message ? err.message : String(err)));
+      });
+    }
+
   } catch (err) {
     const errMsg = err && err.message ? err.message : String(err);
     const stack = err && err.stack ? err.stack : errMsg;
@@ -407,8 +442,25 @@ function showFatalError(err) {
   app.exit(1);
 }
 
-process.on('uncaughtException', (err) => showFatalError(err));
-process.on('unhandledRejection', (reason) => showFatalError(reason instanceof Error ? reason : new Error(String(reason))));
+// electron-updater throws non-fatal network errors on update check failure.
+// Suppress them to prevent the crash dialog from appearing on every startup
+// when the user has no network access or GitHub is unreachable.
+function isUpdaterError(err) {
+  const text = (err && err.stack) ? err.stack : String(err);
+  return text.includes('electron-updater') ||
+         text.includes('builder-util-runtime') ||
+         (err && err.message && err.message.startsWith('Cannot download'));
+}
+
+process.on('uncaughtException', (err) => {
+  if (isUpdaterError(err)) return;
+  showFatalError(err);
+});
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  if (isUpdaterError(err)) return;
+  showFatalError(err);
+});
 
 // Prevent multiple instances — if one is already running, focus it and quit this one
 const gotLock = app.requestSingleInstanceLock();

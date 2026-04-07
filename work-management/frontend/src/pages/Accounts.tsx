@@ -19,10 +19,11 @@ function AccountForm({ initial, territories, onSubmit, onClose, loading }: {
   const [territory_id, setTerritoryId] = useState(String(initial?.territory_id ?? ''));
   const [name, setName] = useState(initial?.name ?? '');
   const [website, setWebsite] = useState(initial?.website ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ territory_id: Number(territory_id), name, website: website || null, notes: notes || null }); }}
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ territory_id: Number(territory_id), name, website: website || null, description: description || null, notes: notes || null }); }}
           className="flex flex-col gap-4">
       <FormField label="Territory" required>
         <Select value={territory_id} onChange={e => setTerritoryId(e.target.value)} required>
@@ -35,6 +36,9 @@ function AccountForm({ initial, territories, onSubmit, onClose, loading }: {
       </FormField>
       <FormField label="Website">
         <Input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." type="url" />
+      </FormField>
+      <FormField label="Description">
+        <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this account about?" />
       </FormField>
       <FormField label="Notes">
         <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any context about this account..." />

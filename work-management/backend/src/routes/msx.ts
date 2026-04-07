@@ -235,7 +235,7 @@ router.post('/refresh-opp', (req: Request, res: Response) => {
           ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.msxId);
         } else {
           db.prepare(
-            'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+            'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner,on_team) VALUES (?,?,?,?,?,?,?,?,?,?,?,1)'
           ).run(localOppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null);
         }
       }

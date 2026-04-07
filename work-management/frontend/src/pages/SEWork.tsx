@@ -1,9 +1,9 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  useDroppable, closestCorners,
-  type DragStartEvent, type DragEndEvent,
+  useDroppable, pointerWithin, closestCenter,
+  type DragStartEvent, type DragOverEvent, type DragEndEvent,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -124,7 +124,8 @@ function SEColumn({ column, items, onAddItem, onEditItem, onDeleteItem, activeId
   onDeleteItem: (i: SEWorkItem) => void;
   activeId: number | null;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.status });
+  // Use 'col-' prefix so column droppable IDs never collide with numeric card IDs
+  const { setNodeRef, isOver } = useDroppable({ id: `col-${column.status}` });
 
   return (
     <div ref={setNodeRef}
@@ -167,6 +168,8 @@ export default function SEWork() {
   const [editing, setEditing] = useState<SEWorkItem | null>(null);
   const [deleting, setDeleting] = useState<SEWorkItem | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [localItems, setLocalItems] = useState<SEWorkItem[]>([]);
+  const isDraggingRef = useRef(false);
 
   const { data = [], isLoading } = useQuery<SEWorkItem[]>({
     queryKey: queryKeys.seWork.all(),
@@ -175,64 +178,102 @@ export default function SEWork() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['se-work'] });
 
+  // Sync from server only when not mid-drag. Use a ref (not activeId state)
+  // to avoid the race where setActiveId(null) triggers this effect before
+  // the patch mutations complete, snapping the item back to its old column.
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalItems([...data].sort((a, b) => a.position - b.position));
+    }
+  }, [data]);
+
   const create = useMutation({ mutationFn: api.seWork.create, onSuccess: () => { invalidate(); setShowForm(false); } });
   const update = useMutation({ mutationFn: ({ id, data }: any) => api.seWork.update(id, data), onSuccess: () => { invalidate(); setEditing(null); } });
   const del = useMutation({ mutationFn: api.seWork.delete, onSuccess: () => { invalidate(); setDeleting(null); } });
   const patchStatus = useMutation({
     mutationFn: ({ id, status, position }: any) => api.seWork.patchStatus(id, status, position),
-    onMutate: async ({ id, status, position }) => {
-      await qc.cancelQueries({ queryKey: ['se-work'] });
-      const snapshot = qc.getQueriesData({ queryKey: ['se-work'] });
-      qc.setQueriesData({ queryKey: ['se-work'] }, (old: any) =>
-        Array.isArray(old) ? old.map((i: any) => i.id === id ? { ...i, status, position } : i) : old
-      );
-      return { snapshot };
-    },
-    onError: (_err, _vars, ctx: any) => {
-      ctx?.snapshot?.forEach(([key, data]: any) => qc.setQueryData(key, data));
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['se-work'] }),
+    onSettled: () => invalidate(),
   });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const itemsByStatus = (status: SEWorkItem['status']) =>
-    data.filter(i => i.status === status).sort((a, b) => a.position - b.position);
+    localItems.filter(i => i.status === status);
 
   function handleDragStart({ active }: DragStartEvent) {
+    isDraggingRef.current = true;
     setActiveId(active.id as number);
+    document.body.classList.add('is-dragging');
   }
 
-  function handleDragEnd({ active, over }: DragEndEvent) {
-    setActiveId(null);
+  function handleDragOver({ active, over }: DragOverEvent) {
     if (!over || active.id === over.id) return;
+    const draggedId = active.id as number;
+    const overId = String(over.id);
 
-    const draggedItem = data.find(i => i.id === active.id);
-    if (!draggedItem) return;
+    setLocalItems(prev => {
+      const draggedItem = prev.find(i => i.id === draggedId);
+      if (!draggedItem) return prev;
 
-    const overItem = data.find(i => i.id === over.id);
-    const targetStatus: SEWorkItem['status'] = overItem
-      ? overItem.status
-      : (String(over.id) as SEWorkItem['status']);
+      // over.id is either 'col-<Status>' (column droppable) or a numeric card id
+      const isOverColumn = overId.startsWith('col-');
+      const targetStatus: SEWorkItem['status'] = isOverColumn
+        ? (overId.slice(4) as SEWorkItem['status'])
+        : (prev.find(i => i.id === Number(overId))?.status ?? draggedItem.status);
 
-    if (draggedItem.status === targetStatus && overItem) {
-      // Same column reorder — use arrayMove so all positions stay consistent
-      const colItems = itemsByStatus(targetStatus);
-      const oldIndex = colItems.findIndex(i => i.id === draggedItem.id);
-      const newIndex = colItems.findIndex(i => i.id === overItem.id);
-      if (oldIndex === newIndex) return;
-      const reordered = arrayMove(colItems, oldIndex, newIndex);
-      reordered.forEach((item, i) => {
-        if (item.position !== i) {
-          patchStatus.mutate({ id: item.id, status: targetStatus, position: i });
+      if (draggedItem.status === targetStatus) {
+        // Same-column reorder — only meaningful when hovering over a specific card
+        if (isOverColumn) return prev;
+        const overCardId = Number(overId);
+        const overItem = prev.find(i => i.id === overCardId);
+        if (!overItem) return prev;
+        const colItems = prev.filter(i => i.status === targetStatus);
+        const oldIdx = colItems.findIndex(i => i.id === draggedId);
+        const newIdx = colItems.findIndex(i => i.id === overCardId);
+        if (oldIdx === newIdx) return prev;
+        const reordered = arrayMove(colItems, oldIdx, newIdx);
+        return [...prev.filter(i => i.status !== targetStatus), ...reordered];
+      } else {
+        // Cross-column move
+        const without = prev.filter(i => i.id !== draggedId);
+        const updated = { ...draggedItem, status: targetStatus };
+        if (!isOverColumn) {
+          const insertIdx = without.findIndex(i => i.id === Number(overId));
+          if (insertIdx >= 0) {
+            return [...without.slice(0, insertIdx), updated, ...without.slice(insertIdx)];
+          }
         }
+        return [...without, updated];
+      }
+    });
+  }
+
+  function handleDragEnd({ active }: DragEndEvent) {
+    isDraggingRef.current = false;
+    setActiveId(null);
+    document.body.classList.remove('is-dragging');
+
+    const draggedId = active.id as number;
+    const finalItem = localItems.find(i => i.id === draggedId);
+    if (!finalItem) { setLocalItems(data); return; }
+
+    const originalItem = data.find(d => d.id === draggedId);
+    const statusChanged = originalItem?.status !== finalItem.status;
+
+    // Persist destination column — all positions in new order
+    const destColItems = localItems.filter(i => i.status === finalItem.status);
+    destColItems.forEach((item, idx) => {
+      const orig = data.find(d => d.id === item.id);
+      if (!orig || orig.status !== item.status || orig.position !== idx) {
+        patchStatus.mutate({ id: item.id, status: item.status, position: idx });
+      }
+    });
+
+    // If column changed, also re-persist source column positions
+    if (statusChanged && originalItem) {
+      localItems.filter(i => i.status === originalItem.status).forEach((item, idx) => {
+        patchStatus.mutate({ id: item.id, status: item.status, position: idx });
       });
-    } else {
-      // Cross-column move
-      const colItems = itemsByStatus(targetStatus).filter(i => i.id !== draggedItem.id);
-      const overIndex = overItem ? colItems.findIndex(i => i.id === overItem.id) : colItems.length;
-      const newPosition = overIndex >= 0 ? overIndex : colItems.length;
-      patchStatus.mutate({ id: draggedItem.id, status: targetStatus, position: newPosition });
     }
   }
 
@@ -247,7 +288,13 @@ export default function SEWork() {
       />
 
       {isLoading ? <Spinner /> : (
-          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={(args) => { const r = pointerWithin(args); return r.length ? r : closestCenter(args); }}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
           <div className="p-6 flex-1 overflow-hidden flex flex-col">
             <div className="grid grid-cols-4 gap-4 flex-1 min-h-0">
               {SE_COLUMNS.map(col => (

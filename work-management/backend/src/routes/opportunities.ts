@@ -38,25 +38,25 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // POST create opportunity
 router.post('/', (req: Request, res: Response) => {
-  const { account_id, title, description, link, status, next_steps } = req.body;
+  const { account_id, title, description, link, status, next_steps, planning } = req.body;
   if (!account_id) return res.status(400).json({ error: 'account_id is required' });
   if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
   const result = db.prepare(`
-    INSERT INTO opportunities (account_id, title, description, link, status, next_steps)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(account_id, title.trim(), description ?? null, link ?? null, status ?? 'Active', next_steps ?? null);
+    INSERT INTO opportunities (account_id, title, description, link, status, next_steps, planning)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(account_id, title.trim(), description ?? null, link ?? null, status ?? 'Active', next_steps ?? null, planning ?? null);
   res.status(201).json(db.prepare('SELECT * FROM opportunities WHERE id = ?').get(result.lastInsertRowid));
 });
 
 // PUT update opportunity
 router.put('/:id', (req: Request, res: Response) => {
-  const { account_id, title, description, link, status, next_steps } = req.body;
+  const { account_id, title, description, link, status, next_steps, planning } = req.body;
   if (!account_id) return res.status(400).json({ error: 'account_id is required' });
   if (!title?.trim()) return res.status(400).json({ error: 'title is required' });
   const info = db.prepare(`
     UPDATE opportunities SET account_id=?, title=?, description=?, link=?, status=?,
-    next_steps=?, updated_at=datetime('now') WHERE id=?
-  `).run(account_id, title.trim(), description ?? null, link ?? null, status ?? 'Active', next_steps ?? null, req.params.id);
+    next_steps=?, planning=?, updated_at=datetime('now') WHERE id=?
+  `).run(account_id, title.trim(), description ?? null, link ?? null, status ?? 'Active', next_steps ?? null, planning ?? null, req.params.id);
   if (info.changes === 0) return res.status(404).json({ error: 'Opportunity not found' });
   res.json(db.prepare('SELECT * FROM opportunities WHERE id = ?').get(req.params.id));
 });

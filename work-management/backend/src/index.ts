@@ -32,6 +32,9 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Lightweight health check — used by Electron startup poll instead of /api/dashboard
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
 app.use('/api/dashboard',                            dashboardRouter);
 app.use('/api/territories',                          territoriesRouter);
 app.use('/api/accounts',                             accountsRouter);

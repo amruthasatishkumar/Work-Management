@@ -36,7 +36,8 @@ export function CommentsPanel({
   const { data: comments = [] } = useQuery<OpportunityComment[]>({
     queryKey: queryKeys.opportunityComments.list(oppId),
     queryFn: () => api.opportunityComments.list(oppId),
-    refetchInterval: 2 * 60 * 1000,
+    // No refetchInterval — comments reload on add/delete via invalidate().
+    // Per-card polling was firing 20 simultaneous DB queries every 2 minutes.
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: queryKeys.opportunityComments.list(oppId) });

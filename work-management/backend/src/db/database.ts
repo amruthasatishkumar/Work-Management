@@ -40,6 +40,21 @@ const db = {
 // Enable foreign key enforcement
 db.exec('PRAGMA foreign_keys = ON');
 
+// ── Performance PRAGMAs ────────────────────────────────────────────────────────
+// WAL mode: removes exclusive write locks so reads never block writes.
+// This is the #1 fix for "not responding" on Windows.
+db.exec('PRAGMA journal_mode = WAL');
+// NORMAL sync is safe with WAL and avoids FlushFileBuffers on every write.
+db.exec('PRAGMA synchronous = NORMAL');
+// 64 MB page cache — reduces repeated I/O on hot rows.
+db.exec('PRAGMA cache_size = -65536');
+// Keep ORDER BY / GROUP BY temp tables in RAM.
+db.exec('PRAGMA temp_store = MEMORY');
+// 256 MB memory-mapped I/O — removes read syscall overhead.
+db.exec('PRAGMA mmap_size = 268435456');
+// Wait up to 5 s on lock contention instead of immediately throwing SQLITE_BUSY.
+db.exec('PRAGMA busy_timeout = 5000');
+
 // --- Schema ---
 db.exec(`
   CREATE TABLE IF NOT EXISTS territories (
@@ -362,8 +377,45 @@ function runMigrations() {
   if (!milCols.some((c: any) => c.name === 'on_team')) {
     db.exec('ALTER TABLE opportunity_milestones ADD COLUMN on_team INTEGER NOT NULL DEFAULT 0');
   }
+
+  // 19. Add description to accounts
+  const accColsDesc = db.prepare('PRAGMA table_info(accounts)').all() as any[];
+  if (!accColsDesc.some((c: any) => c.name === 'description')) {
+    db.exec('ALTER TABLE accounts ADD COLUMN description TEXT');
+  }
+
+  // 20. Add planning to opportunities
+  const oppColsPlan = db.prepare('PRAGMA table_info(opportunities)').all() as any[];
+  if (!oppColsPlan.some((c: any) => c.name === 'planning')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN planning TEXT');
+  }
+
+  // 21. Back-fill on_team = 1 for all existing milestones — they were all imported by the
+  //     current user from MSX, so they are all "on team". The column was added with DEFAULT 0
+  //     which incorrectly made them invisible on the Milestones page.
+  db.exec('UPDATE opportunity_milestones SET on_team = 1 WHERE on_team = 0');
 }
 
 runMigrations();
+
+// ── Strategic indexes ─────────────────────────────────────────────────────────
+// All FK columns, filter columns and sort columns. Without these every query
+// is a full table scan. CREATE INDEX IF NOT EXISTS is safe to run every startup.
+db.exec('CREATE INDEX IF NOT EXISTS idx_accounts_territory  ON accounts(territory_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_opps_account        ON opportunities(account_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_opps_status         ON opportunities(status)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_opps_updated        ON opportunities(updated_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_account        ON activities(account_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_opp            ON activities(opportunity_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_status         ON activities(status)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_status_pos     ON activities(status, position)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_date           ON activities(date)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_created        ON activities(created_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_opp_comments_opp    ON opportunity_comments(opportunity_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_opp_nextsteps_opp   ON opportunity_next_steps(opportunity_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_milestones_opp      ON opportunity_milestones(opportunity_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_act_comments_act    ON activity_comments(activity_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_sework_status       ON se_work(status)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_sework_status_pos   ON se_work(status, position)');
 
 export default db;

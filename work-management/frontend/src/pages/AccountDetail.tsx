@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, Trash2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, ExternalLink, Flag } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { Button, Badge, statusVariant, Spinner } from '../components/ui';
@@ -106,6 +106,21 @@ export default function AccountDetail() {
   const [editingAct, setEditingAct] = useState<Activity | null>(null);
   const [deletingAct, setDeletingAct] = useState<Activity | null>(null);
   const [filterOppId, setFilterOppId] = useState<number | null>(null);
+  const [descDraft, setDescDraft] = useState<string | null>(null);
+  const [flaggedOpps, setFlaggedOpps] = useState<Set<number>>(() => {
+    try { return new Set<number>(JSON.parse(localStorage.getItem('flagged_opps') ?? '[]')); }
+    catch { return new Set<number>(); }
+  });
+
+  const toggleFlag = (oppId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFlaggedOpps(prev => {
+      const next = new Set(prev);
+      next.has(oppId) ? next.delete(oppId) : next.add(oppId);
+      localStorage.setItem('flagged_opps', JSON.stringify([...next]));
+      return next;
+    });
+  };
 
   const { data: account, isLoading: loadingAccount } = useQuery<Account>({
     queryKey: queryKeys.accounts.detail(accountId),
@@ -135,6 +150,7 @@ export default function AccountDetail() {
   const createAct = useMutation({ mutationFn: api.activities.create, onSuccess: () => { invalidateAll(); setShowActForm(false); } });
   const updateAct = useMutation({ mutationFn: ({ id, data }: any) => api.activities.update(id, data), onSuccess: () => { invalidateAll(); setEditingAct(null); } });
   const deleteAct = useMutation({ mutationFn: api.activities.delete, onSuccess: () => { invalidateAll(); setDeletingAct(null); } });
+  const updateAccount = useMutation({ mutationFn: (data: any) => api.accounts.update(accountId, data), onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.accounts.detail(accountId) }) });
 
   if (loadingAccount) return <Spinner />;
 
@@ -158,6 +174,21 @@ export default function AccountDetail() {
           )}
         </div>
         {account?.notes && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{account.notes}</p>}
+        <div className="mt-3">
+          <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1">Description</p>
+          <textarea
+            className="w-full text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent placeholder:text-slate-400"
+            rows={3}
+            placeholder="Add a description..."
+            value={descDraft ?? (account?.description ?? '')}
+            onChange={e => setDescDraft(e.target.value)}
+            onBlur={() => {
+              if (descDraft !== null && account && descDraft !== (account.description ?? '')) {
+                updateAccount.mutate({ ...account, description: descDraft || null });
+              }
+            }}
+          />
+        </div>
       </div>
 
       <div className="p-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -190,8 +221,11 @@ export default function AccountDetail() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Badge label={opp.status} variant={statusVariant(opp.status)} />
-                      <button onClick={() => setEditingOpp(opp)} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer"><Pencil size={13} /></button>
-                      <button onClick={() => setDeletingOpp(opp)} className="text-slate-400 hover:text-red-600 p-1 cursor-pointer"><Trash2 size={13} /></button>
+                      <button onClick={(e) => toggleFlag(opp.id, e)} className="p-1 cursor-pointer transition-colors" title={flaggedOpps.has(opp.id) ? 'Remove flag' : 'Flag for follow-up'}>
+                        <Flag size={13} className={flaggedOpps.has(opp.id) ? 'text-orange-500 fill-orange-500' : 'text-slate-300 dark:text-slate-600 hover:text-orange-400'} />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingOpp(opp); }} className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer"><Pencil size={13} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); setDeletingOpp(opp); }} className="text-slate-400 hover:text-red-600 p-1 cursor-pointer"><Trash2 size={13} /></button>
                     </div>
                   </div>
                 </div>

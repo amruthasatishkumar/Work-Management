@@ -2,7 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  useDroppable, useDraggable, closestCorners,
+  useDroppable, useDraggable, pointerWithin, closestCenter,
   type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
@@ -168,11 +168,13 @@ export default function Tasks() {
     const data = active.data.current as any;
     setActiveId(String(active.id));
     setActiveType(data?.type === 'board-activity' ? 'board-activity' : 'sidebar-activity');
+    document.body.classList.add('is-dragging');
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     setActiveId(null);
     setActiveType(null);
+    document.body.classList.remove('is-dragging');
     if (!over) return;
 
     const activeData = active.data.current as any;
@@ -233,7 +235,12 @@ export default function Tasks() {
       />
 
       {isLoading ? <Spinner /> : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext
+            sensors={sensors}
+            collisionDetection={(args) => { const r = pointerWithin(args); return r.length ? r : closestCenter(args); }}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
           <div className="flex flex-1 overflow-hidden">
             {/* Kanban board */}
             <div className="flex-1 p-6 overflow-y-auto">

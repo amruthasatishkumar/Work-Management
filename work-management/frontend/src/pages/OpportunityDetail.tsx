@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Pencil, CheckSquare, Square, ExternalLink, X, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, CheckSquare, Square, ExternalLink, X, BarChart3, Flag } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { Button, Badge, statusVariant, Spinner } from '../components/ui';
@@ -87,6 +87,25 @@ export default function OpportunityDetail() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
   const [deleting, setDeleting] = useState<Activity | null>(null);
+  const [planningDraft, setPlanningDraft] = useState<string | null>(null);
+  const [flagged, setFlagged] = useState<boolean>(() => {
+    try {
+      const stored: number[] = JSON.parse(localStorage.getItem('flagged_opps') ?? '[]');
+      return stored.includes(oppId);
+    } catch { return false; }
+  });
+
+  const toggleFlag = () => {
+    setFlagged(prev => {
+      const next = !prev;
+      try {
+        const stored: number[] = JSON.parse(localStorage.getItem('flagged_opps') ?? '[]');
+        const updated = next ? [...stored.filter(i => i !== oppId), oppId] : stored.filter(i => i !== oppId);
+        localStorage.setItem('flagged_opps', JSON.stringify(updated));
+      } catch {}
+      return next;
+    });
+  };
 
   const { data: opp, isLoading: oppLoading } = useQuery<Opportunity>({
     queryKey: queryKeys.opportunities.detail(oppId),
@@ -159,6 +178,11 @@ export default function OpportunityDetail() {
     onSettled: () => invalidate(),
   });
 
+  const updateOpp = useMutation({
+    mutationFn: (data: any) => api.opportunities.update(oppId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.opportunities.detail(oppId) }),
+  });
+
   if (oppLoading) return <div className="p-8"><Spinner /></div>;
   if (!opp) return <div className="p-8 text-slate-500">Opportunity not found.</div>;
 
@@ -190,12 +214,21 @@ export default function OpportunityDetail() {
               {opp.territory_name && <span className="text-slate-400"> · {opp.territory_name}</span>}
             </p>
           </div>
-          {opp.link && (
-            <a href={opp.link} target="_blank" rel="noopener noreferrer"
-               className="text-slate-400 hover:text-blue-600 shrink-0" title="Open link">
-              <ExternalLink size={16} />
-            </a>
-          )}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {opp.link && (
+              <a href={opp.link} target="_blank" rel="noopener noreferrer"
+                 className="p-1 text-slate-400 hover:text-blue-600" title="Open link">
+                <ExternalLink size={16} />
+              </a>
+            )}
+            <button
+              onClick={toggleFlag}
+              className="p-1 cursor-pointer transition-colors"
+              title={flagged ? 'Remove flag' : 'Flag for follow-up'}
+            >
+              <Flag size={16} className={flagged ? 'text-orange-500 fill-orange-500' : 'text-slate-300 dark:text-slate-600 hover:text-orange-400'} />
+            </button>
+          </div>
         </div>
         {(opp.description || opp.solution_play) && (
           <div className="border-t border-slate-100 dark:border-slate-700 pt-3 flex flex-col gap-1.5">
@@ -204,11 +237,31 @@ export default function OpportunityDetail() {
                 <span className="font-medium text-slate-700 dark:text-slate-300">Solution Play:</span>{' '}{opp.solution_play}
               </p>
             )}
-            {opp.description && (
-              <p className="text-sm text-slate-600 dark:text-slate-300">{opp.description}</p>
-            )}
           </div>
         )}
+        <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+          {opp.description && (
+            <>
+              <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1">Description</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{opp.description}</p>
+            </>
+          )}
+        </div>
+        <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
+          <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1">Planning</p>
+          <textarea
+            className="w-full text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent placeholder:text-slate-400"
+            rows={3}
+            placeholder="Add planning notes..."
+            value={planningDraft ?? (opp.planning ?? '')}
+            onChange={e => setPlanningDraft(e.target.value)}
+            onBlur={() => {
+              if (planningDraft !== null && planningDraft !== (opp.planning ?? '')) {
+                updateOpp.mutate({ ...opp, planning: planningDraft || null });
+              }
+            }}
+          />
+        </div>
         {opp.msx_id && (
           <button
             onClick={() => navigate(`/opportunities/${oppId}/milestones`)}

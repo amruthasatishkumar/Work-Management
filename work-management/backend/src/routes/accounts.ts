@@ -47,25 +47,25 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // POST create account
 router.post('/', (req: Request, res: Response) => {
-  const { territory_id, name, website, notes } = req.body;
+  const { territory_id, name, website, notes, description } = req.body;
   if (!territory_id) return res.status(400).json({ error: 'territory_id is required' });
   if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
   const result = db.prepare(
-    'INSERT INTO accounts (territory_id, name, website, notes) VALUES (?, ?, ?, ?)'
-  ).run(territory_id, name.trim(), website ?? null, notes ?? null);
+    'INSERT INTO accounts (territory_id, name, website, notes, description) VALUES (?, ?, ?, ?, ?)'
+  ).run(territory_id, name.trim(), website ?? null, notes ?? null, description ?? null);
   const created = db.prepare('SELECT * FROM accounts WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(created);
 });
 
 // PUT update account
 router.put('/:id', (req: Request, res: Response) => {
-  const { territory_id, name, website, notes } = req.body;
+  const { territory_id, name, website, notes, description } = req.body;
   if (!territory_id) return res.status(400).json({ error: 'territory_id is required' });
   if (!name?.trim()) return res.status(400).json({ error: 'name is required' });
   const info = db.prepare(`
-    UPDATE accounts SET territory_id = ?, name = ?, website = ?, notes = ?,
+    UPDATE accounts SET territory_id = ?, name = ?, website = ?, notes = ?, description = ?,
     updated_at = datetime('now') WHERE id = ?
-  `).run(territory_id, name.trim(), website ?? null, notes ?? null, req.params.id);
+  `).run(territory_id, name.trim(), website ?? null, notes ?? null, description ?? null, req.params.id);
   if (info.changes === 0) return res.status(404).json({ error: 'Account not found' });
   res.json(db.prepare('SELECT * FROM accounts WHERE id = ?').get(req.params.id));
 });

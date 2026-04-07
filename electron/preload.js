@@ -22,4 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackupStatus: () => ipcRenderer.invoke('backup:status'),
   /** Opens a D365 URL in the system browser */
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  /** Subscribe to auto-update status events from the main process */
+  onUpdateStatus: (cb) => ipcRenderer.on('update:status', (_e, data) => cb(data)),
+  /** Quit and install the downloaded update */
+  installUpdate: () => ipcRenderer.invoke('update:install'),
 });
