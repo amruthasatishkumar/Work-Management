@@ -7,6 +7,7 @@ import AccountDetail from './pages/AccountDetail';
 import Opportunities from './pages/Opportunities';
 import OpportunityDetail from './pages/OpportunityDetail';
 import OpportunityMilestones from './pages/OpportunityMilestones';
+import MilestoneTasks from './pages/MilestoneTasks';
 import Activities from './pages/Activities';
 import ActivityDetail from './pages/ActivityDetail';
 import Tasks from './pages/Tasks';
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="opportunities" element={<Opportunities />} />
           <Route path="opportunities/:id" element={<OpportunityDetail />} />
           <Route path="opportunities/:id/milestones" element={<OpportunityMilestones />} />
+          <Route path="opportunities/:id/milestones/:milestoneMsxId/tasks" element={<MilestoneTasks />} />
           <Route path="activities" element={<Activities />} />
           <Route path="activities/:id" element={<ActivityDetail />} />
           <Route path="tasks" element={<Tasks />} />

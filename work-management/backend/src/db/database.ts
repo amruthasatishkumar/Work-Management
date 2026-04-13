@@ -394,6 +394,12 @@ function runMigrations() {
   //     current user from MSX, so they are all "on team". The column was added with DEFAULT 0
   //     which incorrectly made them invisible on the Milestones page.
   db.exec('UPDATE opportunity_milestones SET on_team = 1 WHERE on_team = 0');
+
+  // 22. Add milestone_id to activities — links each activity to the milestone it belongs to in MSX
+  const actColsMilestone = db.prepare('PRAGMA table_info(activities)').all() as any[];
+  if (!actColsMilestone.some((c: any) => c.name === 'milestone_id')) {
+    db.exec('ALTER TABLE activities ADD COLUMN milestone_id INTEGER REFERENCES opportunity_milestones(id) ON DELETE SET NULL');
+  }
 }
 
 runMigrations();
@@ -407,6 +413,7 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_opps_status         ON opportunities(sta
 db.exec('CREATE INDEX IF NOT EXISTS idx_opps_updated        ON opportunities(updated_at)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_acts_account        ON activities(account_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_acts_opp            ON activities(opportunity_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_acts_milestone      ON activities(milestone_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_acts_status         ON activities(status)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_acts_status_pos     ON activities(status, position)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_acts_date           ON activities(date)');

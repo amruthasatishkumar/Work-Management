@@ -13,6 +13,29 @@ import type { Territory, Account } from '../lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface MsxMilestone {
+  msxId: string;
+  milestoneNumber: string | null;
+  name: string | null;
+  workload: string | null;
+  commitment: string | null;
+  category: string | null;
+  monthlyUse: number | null;
+  milestoneDate: string | null;
+  status: string | null;
+  owner: string | null;
+}
+
+interface MsxActivity {
+  activityid: string;
+  subject: string;
+  activitytypecode: string;
+  statecode: number;
+  scheduledstart: string | null;
+  actualend: string | null;
+  milestoneMsxId: string | null;
+}
+
 interface MsxAccountResult {
   tpid: number;
   account: { accountid: string; name: string; websiteurl: string | null } | null;
@@ -22,14 +45,8 @@ interface MsxAccountResult {
     description: string | null;
     statecode: number;
     estimatedclosedate: string | null;
-    activities: Array<{
-      activityid: string;
-      subject: string;
-      activitytypecode: string;
-      statecode: number;
-      scheduledstart: string | null;
-      actualend: string | null;
-    }>;
+    milestones: MsxMilestone[];
+    activities: MsxActivity[];
   }>;
   error?: string;
 }
@@ -37,6 +54,21 @@ interface MsxAccountResult {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const D365_BASE = 'https://microsoftsales.crm.dynamics.com/api/data/v9.2';
+
+const MILESTONE_SELECT_IMPORT = [
+  'msp_engagementmilestoneid',
+  'msp_milestonenumber',
+  'msp_name',
+  '_msp_workloadlkid_value',
+  'msp_commitmentrecommendation',
+  'msp_milestonecategory',
+  'msp_monthlyuse',
+  'msp_milestonedate',
+  'msp_milestonestatus',
+  '_ownerid_value',
+].join(',');
+
+const FV_IMPORT = '@OData.Community.Display.V1.FormattedValue';
 
 async function d365Get<T>(accessToken: string, url: string): Promise<T[]> {
   // webSecurity: false on the Electron main window disables CORS in the renderer.
@@ -57,6 +89,51 @@ async function d365Get<T>(accessToken: string, url: string): Promise<T[]> {
   }
   const json = await res.json();
   return json.value ?? [];
+}
+
+async function fetchMilestonesWithActivities(
+  accessToken: string,
+  oppGuid: string,
+): Promise<{ milestones: MsxMilestone[]; activities: MsxActivity[] }> {
+  const milestoneRows = await d365Get<any>(
+    accessToken,
+    `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${oppGuid}'&$select=${MILESTONE_SELECT_IMPORT}&$orderby=msp_milestonedate`,
+  );
+
+  const milestones: MsxMilestone[] = milestoneRows.map((m: any) => ({
+    msxId: m.msp_engagementmilestoneid,
+    milestoneNumber: m.msp_milestonenumber ?? null,
+    name: m.msp_name ?? null,
+    workload: m[`_msp_workloadlkid_value${FV_IMPORT}`] ?? null,
+    commitment: m[`msp_commitmentrecommendation${FV_IMPORT}`] ?? m.msp_commitmentrecommendation ?? null,
+    category: m[`msp_milestonecategory${FV_IMPORT}`] ?? m.msp_milestonecategory ?? null,
+    monthlyUse: m.msp_monthlyuse ?? null,
+    milestoneDate: m.msp_milestonedate ? m.msp_milestonedate.split('T')[0] : null,
+    status: m[`msp_milestonestatus${FV_IMPORT}`] ?? m.msp_milestonestatus ?? null,
+    owner: m[`_ownerid_value${FV_IMPORT}`] ?? null,
+  }));
+
+  const activities: MsxActivity[] = [];
+  for (const m of milestoneRows) {
+    const mid: string = m.msp_engagementmilestoneid;
+    const acts = await d365Get<any>(
+      accessToken,
+      `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${mid}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`,
+    );
+    for (const act of acts) {
+      activities.push({
+        activityid: act.activityid,
+        subject: act.subject,
+        activitytypecode: act.activitytypecode,
+        statecode: act.statecode,
+        scheduledstart: act.scheduledstart ?? null,
+        actualend: act.actualend ?? null,
+        milestoneMsxId: mid,
+      });
+    }
+  }
+
+  return { milestones, activities };
 }
 
 async function searchD365ByTpids(
@@ -82,12 +159,10 @@ async function searchD365ByTpids(
         // statecode eq 0 = Open only (excludes Won/Lost historical records)
         `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${account.accountid}' and statecode eq 0&$select=opportunityid,name,description,statecode,estimatedclosedate`
       );
-      const oppsWithActivities: any[] = [];
+      const oppsWithMilestones: any[] = [];
       for (const opp of opps) {
-        const activities = await d365Get<any>(
-          accessToken,
-          `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${opp.opportunityid}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`
-        );
+        // Fetch milestones + their activities (activities linked per-milestone, not per-opp)
+        const { milestones, activities } = await fetchMilestonesWithActivities(accessToken, opp.opportunityid);
         // Fetch comments from the msp_forecastcommentsjsonfield on the opportunity
         // This field holds a stringified JSON array — not a standard OData collection
         let annotations: any[] = [];
@@ -108,9 +183,9 @@ async function searchD365ByTpids(
             annotations = JSON.parse(commentsJson.value ?? '[]');
           }
         } catch { /* skip comments if unavailable */ }
-        oppsWithActivities.push({ ...opp, activities, annotations });
+        oppsWithMilestones.push({ ...opp, milestones, activities, annotations });
       }
-      results.push({ tpid, account, opportunities: oppsWithActivities });
+      results.push({ tpid, account, opportunities: oppsWithMilestones });
     } catch (err: any) {
       results.push({ tpid, account: null, opportunities: [], error: err.message });
     }
@@ -152,7 +227,7 @@ function parseOppIdFromUrl(input: string): string | null {
   return match ? match[0].toLowerCase() : null;
 }
 
-// Fetch a single opportunity + parent account + activities + comments from D365.
+// Fetch a single opportunity + parent account + milestones + activities + comments from D365.
 // Uses filter queries (same endpoint pattern as TPID search / d365Get) so the
 // renderer's Chromium proxy handles auth consistently for all D365 calls.
 async function enrichOppById(
@@ -181,10 +256,8 @@ async function enrichOppById(
     account = { accountid: opp._parentaccountid_value, name: displayName, websiteurl: null };
   }
 
-  const activities = await d365Get<any>(
-    accessToken,
-    `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${oppId}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`,
-  );
+  // Fetch milestones + milestone-linked activities (replaces old per-opp activity fetch)
+  const { milestones, activities } = await fetchMilestonesWithActivities(accessToken, oppId);
 
   let annotations: any[] = [];
   try {
@@ -205,7 +278,7 @@ async function enrichOppById(
     }
   } catch { /* skip */ }
 
-  return { account, tpid, opp: { ...opp, activities, annotations } };
+  return { account, tpid, opp: { ...opp, milestones, activities, annotations } };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -490,7 +563,19 @@ export default function MSXImport() {
             estimatedCloseDate: opp.estimatedclosedate ?? null,
             solutionPlay: (opp as any)['msp_solutionplay@OData.Community.Display.V1.FormattedValue'] ?? ((opp as any).msp_solutionplay != null ? String((opp as any).msp_solutionplay) : null),
             link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
-            activities: opp.activities.map(act => ({
+            milestones: (opp.milestones ?? []).map((m: MsxMilestone) => ({
+              msxId: m.msxId,
+              milestoneNumber: m.milestoneNumber ?? null,
+              name: m.name ?? null,
+              workload: m.workload ?? null,
+              commitment: m.commitment ?? null,
+              category: m.category ?? null,
+              monthlyUse: m.monthlyUse ?? null,
+              milestoneDate: m.milestoneDate ?? null,
+              status: m.status ?? null,
+              owner: m.owner ?? null,
+            })),
+            activities: opp.activities.map((act: MsxActivity) => ({
               msxId: act.activityid,
               subject: act.subject || '(No subject)',
               type: mapActivityType(act.activitytypecode),
@@ -498,6 +583,7 @@ export default function MSXImport() {
               status: mapActivityStatus(act.statecode),
               date: act.scheduledstart ? act.scheduledstart.split('T')[0] : new Date().toISOString().split('T')[0],
               completedDate: act.actualend ? act.actualend.split('T')[0] : null,
+              milestoneMsxId: act.milestoneMsxId ?? null,
             })),
             comments: ((opp as any).annotations ?? []).map((a: any) => ({
               // Use userId+modifiedOn as a stable synthetic key (no native ID on this field)
@@ -891,7 +977,7 @@ export default function MSXImport() {
                                   className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 mt-0.5"
                                 >
                                   {isOppExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-                                  {opp.activities.length} activit{opp.activities.length !== 1 ? 'ies' : 'y'}
+                                  {(opp.milestones ?? []).length} milestone{(opp.milestones ?? []).length !== 1 ? 's' : ''} · {opp.activities.length} activit{opp.activities.length !== 1 ? 'ies' : 'y'}
                                 </button>
                               </div>
                             </div>

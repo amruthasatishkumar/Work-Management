@@ -44,9 +44,11 @@ router.post('/check-existing', (req: Request, res: Response) => {
 //     opportunities: [{
 //       msxId: string, title: string, description: string | null, status: string,
 //       estimatedCloseDate: string | null,
+//       milestones: [{ msxId: string, milestoneNumber: string|null, name: string|null, ... }],
 //       activities: [{
 //         msxId: string, subject: string, type: string, status: string,
-//         date: string | null, completedDate: string | null
+//         date: string | null, completedDate: string | null,
+//         milestoneMsxId: string | null
 //       }]
 //     }]
 //   }]
@@ -99,8 +101,8 @@ router.post('/import', (req: Request, res: Response) => {
               'UPDATE opportunities SET title = ?, description = ?, status = ?, account_id = ?, link = ?, solution_play = ?, updated_at = datetime(\'now\') WHERE msx_id = ?'
             ).run(opp.title, opp.description ?? null, opp.status, accountId, opp.link ?? null, opp.solutionPlay ?? null, opp.msxId);
             oppId = existingOpp.id;
-            // Remove old activities for this opp so we re-import fresh
-            db.prepare('DELETE FROM activities WHERE opportunity_id = ? AND account_id = ?').run(oppId, accountId);
+            // Remove old MSX activities for this opp so we re-import fresh
+            db.prepare('DELETE FROM activities WHERE opportunity_id = ? AND account_id = ? AND msx_id IS NOT NULL').run(oppId, accountId);
           } else {
             const result: any = db.prepare(
               'INSERT INTO opportunities (account_id, title, description, status, link, msx_id, solution_play) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -109,15 +111,35 @@ router.post('/import', (req: Request, res: Response) => {
             importedOpportunities++;
           }
 
-          // Insert activities (always fresh — old ones deleted above or this is new opp)
+          // Upsert milestones and build msxId -> localId map for activity linkage
+          const milestoneIdMap = new Map<string, number>();
+          for (const m of opp.milestones ?? []) {
+            if (!m.msxId) continue;
+            const existingM: any = db.prepare('SELECT id FROM opportunity_milestones WHERE msx_id = ?').get(m.msxId);
+            if (existingM) {
+              db.prepare(
+                `UPDATE opportunity_milestones SET milestone_number=?,name=?,workload=?,commitment=?,category=?,monthly_use=?,milestone_date=?,status=?,owner=?,synced_at=datetime('now') WHERE msx_id=?`
+              ).run(m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null, m.msxId);
+              milestoneIdMap.set(m.msxId, existingM.id);
+            } else {
+              const mResult: any = db.prepare(
+                'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner,on_team) VALUES (?,?,?,?,?,?,?,?,?,?,?,1)'
+              ).run(oppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null);
+              milestoneIdMap.set(m.msxId, mResult.lastInsertRowid);
+            }
+          }
+
+          // Insert activities (always fresh — old MSX ones deleted above or this is new opp)
           for (const act of opp.activities ?? []) {
             const actDate = act.date ?? new Date().toISOString().split('T')[0];
+            const localMilestoneId = act.milestoneMsxId ? (milestoneIdMap.get(act.milestoneMsxId) ?? null) : null;
             db.prepare(
-              `INSERT INTO activities (account_id, opportunity_id, type, purpose, date, status, completed_date, msx_id, msx_entity_type)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              `INSERT INTO activities (account_id, opportunity_id, milestone_id, type, purpose, date, status, completed_date, msx_id, msx_entity_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).run(
               accountId,
               oppId,
+              localMilestoneId,
               act.type,
               act.subject,
               actDate,
@@ -216,13 +238,17 @@ router.post('/refresh-opp', (req: Request, res: Response) => {
         if (!act.msxId) continue;
         const existing: any = db.prepare('SELECT id FROM activities WHERE msx_id = ?').get(act.msxId);
         const actDate = act.date ?? new Date().toISOString().split('T')[0];
+        // Resolve milestone_id if milestoneMsxId provided
+        const localMilestoneId = act.milestoneMsxId
+          ? (db.prepare('SELECT id FROM opportunity_milestones WHERE msx_id = ?').get(act.milestoneMsxId) as any)?.id ?? null
+          : null;
         if (existing) {
-          db.prepare('UPDATE activities SET type = ?, purpose = ?, date = ?, status = ?, completed_date = ? WHERE msx_id = ?')
-            .run(act.type, act.subject, actDate, act.status, act.completedDate ?? null, act.msxId);
+          db.prepare('UPDATE activities SET type = ?, purpose = ?, date = ?, status = ?, completed_date = ?, milestone_id = COALESCE(?, milestone_id) WHERE msx_id = ?')
+            .run(act.type, act.subject, actDate, act.status, act.completedDate ?? null, localMilestoneId, act.msxId);
         } else {
           db.prepare(
-            'INSERT INTO activities (account_id, opportunity_id, type, purpose, date, status, completed_date, msx_id, msx_entity_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          ).run(accountId, localOppId, act.type, act.subject, actDate, act.status, act.completedDate ?? null, act.msxId, act.entityType ?? 'task');
+            'INSERT INTO activities (account_id, opportunity_id, milestone_id, type, purpose, date, status, completed_date, msx_id, msx_entity_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          ).run(accountId, localOppId, localMilestoneId, act.type, act.subject, actDate, act.status, act.completedDate ?? null, act.msxId, act.entityType ?? 'task');
         }
       }
 

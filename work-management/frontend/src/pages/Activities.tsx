@@ -287,6 +287,7 @@ export default function Activities() {
                   {' · '}{act.territory_name}
                 </p>
                 {act.opportunity_title && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">↳ {act.opportunity_title}</p>}
+                {act.milestone_name && <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-0.5">⬦ {act.milestone_name}</p>}
                 {act.notes && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{act.notes}</p>}
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">

@@ -61,10 +61,11 @@ export const api = {
       request<void>(`/opportunities/${oppId}/next-steps/${stepId}`, { method: 'DELETE' }),
   },
   activities: {
-    list: (params?: { account_id?: number; opportunity_id?: number; type?: string; status?: string }) => {
+    list: (params?: { account_id?: number; opportunity_id?: number; milestone_id?: number; type?: string; status?: string }) => {
       const qs = new URLSearchParams();
       if (params?.account_id) qs.set('account_id', String(params.account_id));
       if (params?.opportunity_id) qs.set('opportunity_id', String(params.opportunity_id));
+      if (params?.milestone_id) qs.set('milestone_id', String(params.milestone_id));
       if (params?.type) qs.set('type', params.type);
       if (params?.status) qs.set('status', params.status);
       return request<any[]>(`/activities?${qs}`);
@@ -116,7 +117,7 @@ export const api = {
       request<Array<{ account: any; tpid: number; opp: any }>>('/msx/deal-team-opps', { method: 'POST', body: '{}' }),
   },
   milestones: {
-    list: (params?: { on_team?: boolean | string; opportunity_id?: number; account_id?: number; territory_id?: number }) => {
+    list: (params?: { on_team?: boolean | string; opportunity_id?: number; account_id?: number; territory_id?: number; msx_id?: string }) => {
       const mapped = params ? Object.fromEntries(
         Object.entries(params)
           .filter(([, v]) => v != null)
@@ -125,5 +126,6 @@ export const api = {
       const qs = Object.keys(mapped).length ? '?' + new URLSearchParams(mapped).toString() : '';
       return request<any[]>(`/milestones${qs}`);
     },
+    getActivities: (milestoneId: number) => request<any[]>(`/milestones/${milestoneId}/activities`),
   },
 };

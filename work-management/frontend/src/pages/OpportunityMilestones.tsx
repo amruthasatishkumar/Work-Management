@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, RefreshCw, ExternalLink, Users, UserMinus, Plus,
@@ -557,7 +557,12 @@ export default function OpportunityMilestones() {
                             {m.msp_milestonenumber ?? '—'}
                           </td>
                           <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 max-w-xs">
-                            <span className="line-clamp-2">{m.msp_name ?? '—'}</span>
+                            <Link
+                              to={`/opportunities/${oppId}/milestones/${mid}/tasks`}
+                              className="line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                            >
+                              {m.msp_name ?? '—'}
+                            </Link>
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                             {fv(m, 'msp_commitmentrecommendation')}

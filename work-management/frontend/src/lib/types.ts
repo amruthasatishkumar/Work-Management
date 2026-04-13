@@ -66,6 +66,9 @@ export interface Activity {
   opportunity_id: number | null;
   opportunity_title?: string | null;
   opportunity_msx_id?: string | null;
+  milestone_id?: number | null;
+  milestone_name?: string | null;
+  milestone_msx_id?: string | null;
   type: 'Demo' | 'Meeting' | 'POC' | 'Architecture Review' | 'Follow up Meeting' | 'Other';
   purpose: string;
   date: string;

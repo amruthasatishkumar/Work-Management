@@ -3,9 +3,9 @@ import db from '../db/database';
 
 const router = Router();
 
-// GET /api/milestones — filterable by territory_id, account_id, opportunity_id, on_team
+// GET /api/milestones — filterable by territory_id, account_id, opportunity_id, on_team, msx_id
 router.get('/', (req: Request, res: Response) => {
-  const { territory_id, account_id, opportunity_id, on_team } = req.query;
+  const { territory_id, account_id, opportunity_id, on_team, msx_id } = req.query;
 
   let query = `
     SELECT om.*,
@@ -24,10 +24,28 @@ router.get('/', (req: Request, res: Response) => {
   if (account_id)      { query += ' AND a.id = ?';               params.push(Number(account_id)); }
   if (opportunity_id)  { query += ' AND om.opportunity_id = ?';  params.push(Number(opportunity_id)); }
   if (on_team === '1') { query += ' AND om.on_team = 1'; }
+  if (msx_id)          { query += ' AND om.msx_id = ?';          params.push(String(msx_id)); }
 
   query += ' ORDER BY om.milestone_date ASC, om.id ASC';
 
   res.json(db.prepare(query).all(...params));
+});
+
+// GET /api/milestones/:id/activities — activities linked to a specific local milestone
+router.get('/:id/activities', (req: Request, res: Response) => {
+  const rows = db.prepare(`
+    SELECT ac.*, a.name as account_name, t.name as territory_name,
+           o.title as opportunity_title, o.msx_id as opportunity_msx_id,
+           om.name as milestone_name, om.msx_id as milestone_msx_id
+    FROM activities ac
+    LEFT JOIN accounts a ON a.id = ac.account_id
+    LEFT JOIN territories t ON t.id = a.territory_id
+    LEFT JOIN opportunities o ON o.id = ac.opportunity_id
+    LEFT JOIN opportunity_milestones om ON om.id = ac.milestone_id
+    WHERE ac.milestone_id = ?
+    ORDER BY ac.position ASC, ac.date DESC, ac.created_at DESC
+  `).all(req.params.id);
+  res.json(rows);
 });
 
 export default router;

@@ -3,21 +3,24 @@ import db from '../db/database';
 
 const router = Router();
 
-// GET all activities (filterable by account_id, opportunity_id, type, status)
+// GET all activities (filterable by account_id, opportunity_id, milestone_id, type, status)
 router.get('/', (req: Request, res: Response) => {
-  const { account_id, opportunity_id, type, status } = req.query;
+  const { account_id, opportunity_id, milestone_id, type, status } = req.query;
   let query = `
     SELECT ac.*, a.name as account_name, t.name as territory_name,
-           o.title as opportunity_title, o.msx_id as opportunity_msx_id
+           o.title as opportunity_title, o.msx_id as opportunity_msx_id,
+           om.name as milestone_name, om.msx_id as milestone_msx_id
     FROM activities ac
     LEFT JOIN accounts a ON a.id = ac.account_id
     LEFT JOIN territories t ON t.id = a.territory_id
     LEFT JOIN opportunities o ON o.id = ac.opportunity_id
+    LEFT JOIN opportunity_milestones om ON om.id = ac.milestone_id
     WHERE 1=1
   `;
   const params: string[] = [];
   if (account_id)     { query += ' AND ac.account_id = ?';     params.push(String(account_id)); }
   if (opportunity_id) { query += ' AND ac.opportunity_id = ?'; params.push(String(opportunity_id)); }
+  if (milestone_id)   { query += ' AND ac.milestone_id = ?';   params.push(String(milestone_id)); }
   if (type)           { query += ' AND ac.type = ?';           params.push(String(type)); }
   if (status)         { query += ' AND ac.status = ?';         params.push(String(status)); }
   query += ' ORDER BY ac.position ASC, ac.date DESC, ac.created_at DESC';
@@ -28,11 +31,13 @@ router.get('/', (req: Request, res: Response) => {
 router.get('/:id', (req: Request, res: Response) => {
   const row = db.prepare(`
     SELECT ac.*, a.name as account_name, t.name as territory_name,
-           o.title as opportunity_title, o.msx_id as opportunity_msx_id
+           o.title as opportunity_title, o.msx_id as opportunity_msx_id,
+           om.name as milestone_name, om.msx_id as milestone_msx_id
     FROM activities ac
     LEFT JOIN accounts a ON a.id = ac.account_id
     LEFT JOIN territories t ON t.id = a.territory_id
     LEFT JOIN opportunities o ON o.id = ac.opportunity_id
+    LEFT JOIN opportunity_milestones om ON om.id = ac.milestone_id
     WHERE ac.id = ?
   `).get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Activity not found' });
@@ -41,7 +46,7 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // POST create activity
 router.post('/', (req: Request, res: Response) => {
-  const { account_id, opportunity_id, type, purpose, date, due_date, status, notes, completed_date } = req.body;
+  const { account_id, opportunity_id, milestone_id, type, purpose, date, due_date, status, notes, completed_date } = req.body;
   if (!account_id) return res.status(400).json({ error: 'account_id is required' });
   if (!type?.trim()) return res.status(400).json({ error: 'type is required' });
   if (!purpose?.trim()) return res.status(400).json({ error: 'purpose is required' });
@@ -49,15 +54,15 @@ router.post('/', (req: Request, res: Response) => {
   const resolvedStatus = status ?? 'To Do';
   const resolvedCompletedDate = completed_date ?? (resolvedStatus === 'Completed' ? new Date().toISOString().split('T')[0] : null);
   const result = db.prepare(`
-    INSERT INTO activities (account_id, opportunity_id, type, purpose, date, due_date, status, notes, completed_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(account_id, opportunity_id ?? null, type.trim(), purpose.trim(), date.trim(), due_date ?? null, resolvedStatus, notes ?? null, resolvedCompletedDate);
+    INSERT INTO activities (account_id, opportunity_id, milestone_id, type, purpose, date, due_date, status, notes, completed_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(account_id, opportunity_id ?? null, milestone_id ?? null, type.trim(), purpose.trim(), date.trim(), due_date ?? null, resolvedStatus, notes ?? null, resolvedCompletedDate);
   res.status(201).json(db.prepare('SELECT * FROM activities WHERE id = ?').get(result.lastInsertRowid));
 });
 
 // PUT update activity
 router.put('/:id', (req: Request, res: Response) => {
-  const { account_id, opportunity_id, type, purpose, date, due_date, status, notes, completed_date } = req.body;
+  const { account_id, opportunity_id, milestone_id, type, purpose, date, due_date, status, notes, completed_date } = req.body;
   if (!account_id) return res.status(400).json({ error: 'account_id is required' });
   if (!type?.trim()) return res.status(400).json({ error: 'type is required' });
   if (!purpose?.trim()) return res.status(400).json({ error: 'purpose is required' });
@@ -68,9 +73,9 @@ router.put('/:id', (req: Request, res: Response) => {
     ? (completed_date || null)
     : (status === 'Completed' && !existing?.completed_date ? new Date().toISOString().split('T')[0] : (existing?.completed_date ?? null));
   const info = db.prepare(`
-    UPDATE activities SET account_id=?, opportunity_id=?, type=?, purpose=?, date=?, due_date=?,
+    UPDATE activities SET account_id=?, opportunity_id=?, milestone_id=?, type=?, purpose=?, date=?, due_date=?,
     status=?, notes=?, completed_date=?, updated_at=datetime('now') WHERE id=?
-  `).run(account_id, opportunity_id ?? null, type.trim(), purpose.trim(), date.trim(), due_date ?? null, status ?? 'To Do', notes ?? null, resolvedCompletedDate, req.params.id);
+  `).run(account_id, opportunity_id ?? null, milestone_id ?? null, type.trim(), purpose.trim(), date.trim(), due_date ?? null, status ?? 'To Do', notes ?? null, resolvedCompletedDate, req.params.id);
   if (info.changes === 0) return res.status(404).json({ error: 'Activity not found' });
 
   // If activity is marked Completed and linked to an opportunity,
