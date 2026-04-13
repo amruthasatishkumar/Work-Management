@@ -30,8 +30,8 @@ export default function Dashboard() {
         <Link to="/accounts" className="block hover:opacity-80 transition-opacity"><StatCard label="Accounts" value={s?.accounts ?? 0} color="blue" /></Link>
         <Link to="/opportunities?status=Active" className="block hover:opacity-80 transition-opacity"><StatCard label="Active Opportunities" value={s?.opportunities_active ?? 0} sub={`${s?.opportunities_total ?? 0} total`} color="green" /></Link>
         <Link to="/activities?exclude_completed=1" className="block hover:opacity-80 transition-opacity"><StatCard label="Remaining Activities" value={s?.activities_upcoming ?? 0} sub={`${s?.activities_total ?? 0} total`} color="amber" /></Link>
-        <Link to="/se-work" className="block hover:opacity-80 transition-opacity"><StatCard label="SE Work (Not Started)" value={s?.se_not_started ?? 0} color="purple" /></Link>
-        <Link to="/se-work" className="block hover:opacity-80 transition-opacity"><StatCard label="SE Work (In Progress)" value={s?.se_inprogress ?? 0} color="red" /></Link>
+        <Link to="/se-work" className="block hover:opacity-80 transition-opacity sm:col-span-2"><StatCard label="SE Work (Not Started)" value={s?.se_not_started ?? 0} color="purple" /></Link>
+        <Link to="/se-work" className="block hover:opacity-80 transition-opacity sm:col-span-2"><StatCard label="SE Work (In Progress)" value={s?.se_inprogress ?? 0} color="red" /></Link>
       </div>
 
       <div className="px-6 pb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">

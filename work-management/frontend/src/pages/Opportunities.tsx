@@ -1,8 +1,8 @@
-﻿import { useState } from 'react';
+﻿import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, ExternalLink, X, CheckSquare, Square, ArrowRight } from 'lucide-react';
 import { CommentsPanel } from '../components/CommentsPanel';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { PageHeader, Button, Badge, statusVariant, Spinner, EmptyState } from '../components/ui';
@@ -291,10 +291,14 @@ function NextStepsPanel({ opp }: { opp: Opportunity }) {
 
 export default function Opportunities() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Opportunity | null>(null);
   const [deleting, setDeleting] = useState<Opportunity | null>(null);
+  const [nameInput, setNameInput] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cascading filters — stored in URL so back-navigation restores them
   const filterTerritory = searchParams.get('territory') ?? '';
@@ -355,16 +359,32 @@ export default function Opportunities() {
     }, { replace: true });
   };
 
+  const displayed = nameFilter
+    ? data.filter(o => (o.title ?? '').toLowerCase().includes(nameFilter.toLowerCase()))
+    : data;
+
   return (
     <div>
       <PageHeader
         title="Opportunities"
         subtitle="All opportunities across your territories"
-        action={<Button onClick={() => setShowForm(true)}><Plus size={14} /> Add Opportunity</Button>}
+        action={<Button onClick={() => navigate('/msx-import')}><Plus size={14} /> Add Opportunity</Button>}
       />
 
       {/* Cascading filters */}
       <div className="flex flex-wrap items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+        <input
+          type="text"
+          placeholder="Search by name…"
+          value={nameInput}
+          onChange={e => {
+            const v = e.target.value;
+            setNameInput(v);
+            if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+            nameDebounceRef.current = setTimeout(() => setNameFilter(v), 200);
+          }}
+          className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
+        />
         <Select value={filterTerritory} onChange={e => handleTerritoryChange(e.target.value)} className="!w-44">
           <option value="">All territories</option>
           {territories.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -382,9 +402,9 @@ export default function Opportunities() {
           <option value="">All statuses</option>
           {OPP_STATUSES.map(s => <option key={s}>{s}</option>)}
         </Select>
-        {(filterTerritory || filterAccount || filterStatus) && (
+        {(filterTerritory || filterAccount || filterStatus || nameFilter) && (
           <button
-            onClick={() => setSearchParams({}, { replace: true })}
+            onClick={() => { setSearchParams({}, { replace: true }); setNameInput(''); setNameFilter(''); }}
             className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
           >
             Clear filters
@@ -393,12 +413,12 @@ export default function Opportunities() {
       </div>
 
       {isLoading && <Spinner />}
-      {!isLoading && data.length === 0 && (
+      {!isLoading && displayed.length === 0 && (
         <EmptyState title="No opportunities found" description="Add your first opportunity or adjust filters." />
       )}
 
       <div className="p-6 space-y-4">
-        {data.map((opp) => (
+        {displayed.map((opp) => (
           <div key={opp.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 hover:shadow-sm transition-shadow">
             {/* Header row */}
             <div className="flex items-start justify-between gap-3">

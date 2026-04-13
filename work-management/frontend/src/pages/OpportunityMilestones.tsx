@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -151,10 +151,12 @@ export default function OpportunityMilestones() {
   const [actionStatus, setActionStatus] = useState<Record<string, string | null>>({});
   const [taskModal, setTaskModal] = useState<{ milestoneId: string; milestoneName: string } | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
+  const [nameInput, setNameInput] = useState('');
   const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cachedUserIdRef = useRef<string | null>(null);
   const cachedUserNameRef = useRef<string | null>(null);
@@ -352,21 +354,21 @@ export default function OpportunityMilestones() {
     }
   };
 
-  const statusOptions = Array.from(
+  const statusOptions = useMemo(() => Array.from(
     new Set(milestones.map(m => m[`msp_milestonestatus${FV}`] ?? String(m.msp_milestonestatus ?? ''))),
-  ).filter(Boolean).sort();
+  ).filter(Boolean).sort(), [milestones]);
 
-  const categoryOptions = Array.from(
+  const categoryOptions = useMemo(() => Array.from(
     new Set(milestones.map(m => m[`msp_milestonecategory${FV}`] ?? String(m.msp_milestonecategory ?? ''))),
-  ).filter(Boolean).sort();
+  ).filter(Boolean).sort(), [milestones]);
 
-  const ownerOptions = Array.from(
+  const ownerOptions = useMemo(() => Array.from(
     new Set(milestones.map(m => m[`_ownerid_value${FV}`] ?? '').filter(Boolean)),
-  ).sort();
+  ).sort(), [milestones]);
 
   const hasFilter = !!(nameFilter || statusFilter || categoryFilter || ownerFilter);
 
-  const displayed = milestones.filter(m => {
+  const displayed = useMemo(() => milestones.filter(m => {
     const name = (m.msp_name ?? '').toLowerCase();
     const status = m[`msp_milestonestatus${FV}`] ?? String(m.msp_milestonestatus ?? '');
     const category = m[`msp_milestonecategory${FV}`] ?? String(m.msp_milestonecategory ?? '');
@@ -377,7 +379,7 @@ export default function OpportunityMilestones() {
       (!categoryFilter || category === categoryFilter) &&
       (!ownerFilter || owner === ownerFilter)
     );
-  });
+  }), [milestones, nameFilter, statusFilter, categoryFilter, ownerFilter]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -443,8 +445,13 @@ export default function OpportunityMilestones() {
               <input
                 type="text"
                 placeholder="Search by name…"
-                value={nameFilter}
-                onChange={e => setNameFilter(e.target.value)}
+                value={nameInput}
+                onChange={e => {
+                  const v = e.target.value;
+                  setNameInput(v);
+                  if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+                  nameDebounceRef.current = setTimeout(() => setNameFilter(v), 200);
+                }}
                 className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-44"
               />
               <select
@@ -473,7 +480,7 @@ export default function OpportunityMilestones() {
               </select>
               {hasFilter && (
                 <button
-                  onClick={() => { setNameFilter(''); setStatusFilter(''); setCategoryFilter(''); setOwnerFilter(''); }}
+                  onClick={() => { setNameInput(''); setNameFilter(''); setStatusFilter(''); setCategoryFilter(''); setOwnerFilter(''); }}
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
                 >
                   Clear
