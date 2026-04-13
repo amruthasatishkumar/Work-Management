@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
 import { api } from '../lib/api';
@@ -31,11 +31,24 @@ const COLUMNS = [
 
 export default function Milestones() {
   const navigate = useNavigate();
-  const [nameFilter, setNameFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [accountFilter, setAccountFilter] = useState('');
-  const [oppFilter, setOppFilter] = useState('');
-  const [ownerFilter, setOwnerFilter] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const nameFilter   = searchParams.get('name')    ?? '';
+  const statusFilter = searchParams.get('status')  ?? '';
+  const accountFilter = searchParams.get('account') ?? '';
+  const oppFilter    = searchParams.get('opp')     ?? '';
+  const ownerFilter  = searchParams.get('owner')   ?? '';
+
+  const [nameInput, setNameInput] = useState(nameFilter);
+  const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setFilter = (key: string, value: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value); else next.delete(key);
+      return next;
+    }, { replace: true });
+  };
 
   const { data: milestones = [], isLoading } = useQuery({
     queryKey: queryKeys.milestones.all(),
@@ -60,6 +73,7 @@ export default function Milestones() {
   );
 
   const hasFilter = !!(nameFilter || statusFilter || accountFilter || oppFilter || ownerFilter);
+
 
   const displayed = useMemo(() =>
     (milestones as Milestone[]).filter(m => {
@@ -99,13 +113,18 @@ export default function Milestones() {
                 <input
                   type="text"
                   placeholder="Search by name…"
-                  value={nameFilter}
-                  onChange={e => setNameFilter(e.target.value)}
+                  value={nameInput}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setNameInput(v);
+                    if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+                    nameDebounceRef.current = setTimeout(() => setFilter('name', v), 200);
+                  }}
                   className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-44"
                 />
                 <select
                   value={accountFilter}
-                  onChange={e => setAccountFilter(e.target.value)}
+                  onChange={e => setFilter('account', e.target.value)}
                   className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">All Accounts</option>
@@ -113,7 +132,7 @@ export default function Milestones() {
                 </select>
                 <select
                   value={oppFilter}
-                  onChange={e => setOppFilter(e.target.value)}
+                  onChange={e => setFilter('opp', e.target.value)}
                   className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 max-w-[200px] truncate"
                 >
                   <option value="">All Opportunities</option>
@@ -121,7 +140,7 @@ export default function Milestones() {
                 </select>
                 <select
                   value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
+                  onChange={e => setFilter('status', e.target.value)}
                   className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">All Statuses</option>
@@ -129,7 +148,7 @@ export default function Milestones() {
                 </select>
                 <select
                   value={ownerFilter}
-                  onChange={e => setOwnerFilter(e.target.value)}
+                  onChange={e => setFilter('owner', e.target.value)}
                   className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">All Owners</option>
@@ -137,7 +156,7 @@ export default function Milestones() {
                 </select>
                 {hasFilter && (
                   <button
-                    onClick={() => { setNameFilter(''); setStatusFilter(''); setAccountFilter(''); setOppFilter(''); setOwnerFilter(''); }}
+                    onClick={() => { setNameInput(''); setSearchParams({}, { replace: true }); }}
                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
                   >
                     Clear

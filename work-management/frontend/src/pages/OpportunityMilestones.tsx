@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, RefreshCw, ExternalLink, Users, UserMinus, Plus,
@@ -151,12 +151,23 @@ export default function OpportunityMilestones() {
   const [actionStatus, setActionStatus] = useState<Record<string, string | null>>({});
   const [taskModal, setTaskModal] = useState<{ milestoneId: string; milestoneName: string } | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
-  const [nameInput, setNameInput] = useState('');
-  const [nameFilter, setNameFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [ownerFilter, setOwnerFilter] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const nameFilter    = searchParams.get('name')     ?? '';
+  const statusFilter  = searchParams.get('status')   ?? '';
+  const categoryFilter = searchParams.get('category') ?? '';
+  const ownerFilter   = searchParams.get('owner')    ?? '';
+
+  const [nameInput, setNameInput] = useState(nameFilter);
   const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setFilter = (key: string, value: string) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value); else next.delete(key);
+      return next;
+    }, { replace: true });
+  };
 
   const cachedUserIdRef = useRef<string | null>(null);
   const cachedUserNameRef = useRef<string | null>(null);
@@ -450,13 +461,13 @@ export default function OpportunityMilestones() {
                   const v = e.target.value;
                   setNameInput(v);
                   if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
-                  nameDebounceRef.current = setTimeout(() => setNameFilter(v), 200);
+                  nameDebounceRef.current = setTimeout(() => setFilter('name', v), 200);
                 }}
                 className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-44"
               />
               <select
                 value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value)}
+                onChange={e => setFilter('category', e.target.value)}
                 className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 <option value="">All Categories</option>
@@ -464,7 +475,7 @@ export default function OpportunityMilestones() {
               </select>
               <select
                 value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
+                onChange={e => setFilter('status', e.target.value)}
                 className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 <option value="">All Statuses</option>
@@ -472,7 +483,7 @@ export default function OpportunityMilestones() {
               </select>
               <select
                 value={ownerFilter}
-                onChange={e => setOwnerFilter(e.target.value)}
+                onChange={e => setFilter('owner', e.target.value)}
                 className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 <option value="">All Owners</option>
@@ -480,7 +491,7 @@ export default function OpportunityMilestones() {
               </select>
               {hasFilter && (
                 <button
-                  onClick={() => { setNameInput(''); setNameFilter(''); setStatusFilter(''); setCategoryFilter(''); setOwnerFilter(''); }}
+                  onClick={() => { setNameInput(''); setSearchParams({}, { replace: true }); }}
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
                 >
                   Clear

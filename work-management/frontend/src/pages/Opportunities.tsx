@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+﻿import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, ExternalLink, X, CheckSquare, Square, ArrowRight } from 'lucide-react';
 import { CommentsPanel } from '../components/CommentsPanel';
@@ -296,14 +296,14 @@ export default function Opportunities() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Opportunity | null>(null);
   const [deleting, setDeleting] = useState<Opportunity | null>(null);
-  const [nameInput, setNameInput] = useState('');
-  const [nameFilter, setNameFilter] = useState('');
   const nameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cascading filters — stored in URL so back-navigation restores them
   const filterTerritory = searchParams.get('territory') ?? '';
   const filterAccount   = searchParams.get('account')   ?? '';
   const filterStatus    = searchParams.get('status')    ?? '';
+  const nameFilter      = searchParams.get('name')      ?? '';
+  const [nameInput, setNameInput] = useState(nameFilter);
 
   const setFilter = (key: string, value: string) => {
     setSearchParams(prev => {
@@ -329,11 +329,11 @@ export default function Opportunities() {
     queryFn: () => api.accounts.list(),
   });
 
-  const filterParams = {
+  const filterParams = useMemo(() => ({
     territory_id: filterTerritory ? Number(filterTerritory) : undefined,
     account_id: filterAccount ? Number(filterAccount) : undefined,
     status: filterStatus || undefined,
-  };
+  }), [filterTerritory, filterAccount, filterStatus]);
 
   const { data = [], isLoading } = useQuery<Opportunity[]>({
     queryKey: queryKeys.opportunities.all(filterParams),
@@ -359,9 +359,12 @@ export default function Opportunities() {
     }, { replace: true });
   };
 
-  const displayed = nameFilter
-    ? data.filter(o => (o.title ?? '').toLowerCase().includes(nameFilter.toLowerCase()))
-    : data;
+  const displayed = useMemo(() =>
+    nameFilter
+      ? data.filter(o => (o.title ?? '').toLowerCase().includes(nameFilter.toLowerCase()))
+      : data,
+    [data, nameFilter],
+  );
 
   return (
     <div>
@@ -381,7 +384,7 @@ export default function Opportunities() {
             const v = e.target.value;
             setNameInput(v);
             if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
-            nameDebounceRef.current = setTimeout(() => setNameFilter(v), 200);
+            nameDebounceRef.current = setTimeout(() => setFilter('name', v), 200);
           }}
           className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
         />
@@ -404,7 +407,7 @@ export default function Opportunities() {
         </Select>
         {(filterTerritory || filterAccount || filterStatus || nameFilter) && (
           <button
-            onClick={() => { setSearchParams({}, { replace: true }); setNameInput(''); setNameFilter(''); }}
+            onClick={() => { setSearchParams({}, { replace: true }); setNameInput(''); }}
             className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
           >
             Clear filters
