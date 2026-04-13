@@ -90,9 +90,11 @@ export function useMsxLiveSync(oppId: number | null, oppMsxId: string | null) {
       // Fetch milestones from D365 and save to local DB for AI assistant
       let milestones: any[] = [];
       try {
+        // Request FormattedValue annotations so option-set fields return labels not raw integers
+        const milestoneHeaders = { ...headers, 'Prefer': 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"' };
         const r = await fetch(
           `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${cleanId}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
-          { headers }
+          { headers: milestoneHeaders }
         );
         if (r.ok) {
           const j = await r.json();

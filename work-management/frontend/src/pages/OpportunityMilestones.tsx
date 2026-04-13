@@ -233,9 +233,11 @@ export default function OpportunityMilestones() {
       }
       const { headers, userId } = ctx;
       const cleanId = opp.msx_id.replace(/[{}]/g, '');
+      // Request FormattedValue annotations so option-set fields return labels (e.g. "On Track") not raw integers
+      const milestoneHeaders = { ...headers, 'Prefer': 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"' };
       const r = await fetch(
         `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${cleanId}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
-        { headers },
+        { headers: milestoneHeaders },
       );
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
@@ -473,7 +475,7 @@ export default function OpportunityMilestones() {
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
                       {[
                         'Milestone ID', 'Name', 'Customer Commitment',
-                        'Category', 'Est. Monthly Usage', 'Est. Date', 'Status', 'Actions',
+                        'Category', 'Est. Monthly Usage', 'Est. Date', 'Status', 'Owner', 'Actions',
                       ].map(col => (
                         <th key={col} className="px-4 py-3 text-left text-xs font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                           {col}
@@ -519,6 +521,9 @@ export default function OpportunityMilestones() {
                               ? <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>{statusLabel}</span>
                               : <span className="text-slate-400">—</span>
                             }
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {m[`_ownerid_value${FV}`] ?? '—'}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
