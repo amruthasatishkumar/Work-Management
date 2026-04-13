@@ -33,6 +33,9 @@ export default function Milestones() {
   const navigate = useNavigate();
   const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [accountFilter, setAccountFilter] = useState('');
+  const [oppFilter, setOppFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
 
   const { data: milestones = [], isLoading } = useQuery({
     queryKey: queryKeys.milestones.all(),
@@ -43,14 +46,31 @@ export default function Milestones() {
     Array.from(new Set((milestones as Milestone[]).map(m => m.status ?? '').filter(Boolean))).sort(),
     [milestones],
   );
+  const accountOptions = useMemo(() =>
+    Array.from(new Set((milestones as Milestone[]).map(m => m.account_name ?? '').filter(Boolean))).sort(),
+    [milestones],
+  );
+  const oppOptions = useMemo(() =>
+    Array.from(new Set((milestones as Milestone[]).map(m => m.opportunity_title ?? '').filter(Boolean))).sort(),
+    [milestones],
+  );
+  const ownerOptions = useMemo(() =>
+    Array.from(new Set((milestones as Milestone[]).map(m => m.owner ?? '').filter(Boolean))).sort(),
+    [milestones],
+  );
+
+  const hasFilter = !!(nameFilter || statusFilter || accountFilter || oppFilter || ownerFilter);
 
   const displayed = useMemo(() =>
     (milestones as Milestone[]).filter(m => {
       const nameMatch = !nameFilter || (m.name ?? '').toLowerCase().includes(nameFilter.toLowerCase());
       const statusMatch = !statusFilter || m.status === statusFilter;
-      return nameMatch && statusMatch;
+      const accountMatch = !accountFilter || m.account_name === accountFilter;
+      const oppMatch = !oppFilter || m.opportunity_title === oppFilter;
+      const ownerMatch = !ownerFilter || m.owner === ownerFilter;
+      return nameMatch && statusMatch && accountMatch && oppMatch && ownerMatch;
     }),
-    [milestones, nameFilter, statusFilter],
+    [milestones, nameFilter, statusFilter, accountFilter, oppFilter, ownerFilter],
   );
 
   return (
@@ -81,8 +101,24 @@ export default function Milestones() {
                   placeholder="Search by name…"
                   value={nameFilter}
                   onChange={e => setNameFilter(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
+                  className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-44"
                 />
+                <select
+                  value={accountFilter}
+                  onChange={e => setAccountFilter(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">All Accounts</option>
+                  {accountOptions.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <select
+                  value={oppFilter}
+                  onChange={e => setOppFilter(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 max-w-[200px] truncate"
+                >
+                  <option value="">All Opportunities</option>
+                  {oppOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
@@ -91,16 +127,24 @@ export default function Milestones() {
                   <option value="">All Statuses</option>
                   {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
-                {(nameFilter || statusFilter) && (
+                <select
+                  value={ownerFilter}
+                  onChange={e => setOwnerFilter(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="">All Owners</option>
+                  {ownerOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                {hasFilter && (
                   <button
-                    onClick={() => { setNameFilter(''); setStatusFilter(''); }}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    onClick={() => { setNameFilter(''); setStatusFilter(''); setAccountFilter(''); setOppFilter(''); setOwnerFilter(''); }}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
                   >
                     Clear
                   </button>
                 )}
-                {(nameFilter || statusFilter) && (
-                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
+                {hasFilter && (
+                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto shrink-0">
                     {displayed.length} of {milestones.length}
                   </span>
                 )}

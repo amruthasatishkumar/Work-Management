@@ -153,6 +153,8 @@ export default function OpportunityMilestones() {
   const [taskLoading, setTaskLoading] = useState(false);
   const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('');
 
   const cachedUserIdRef = useRef<string | null>(null);
   const cachedUserNameRef = useRef<string | null>(null);
@@ -354,12 +356,26 @@ export default function OpportunityMilestones() {
     new Set(milestones.map(m => m[`msp_milestonestatus${FV}`] ?? String(m.msp_milestonestatus ?? ''))),
   ).filter(Boolean).sort();
 
+  const categoryOptions = Array.from(
+    new Set(milestones.map(m => m[`msp_milestonecategory${FV}`] ?? String(m.msp_milestonecategory ?? ''))),
+  ).filter(Boolean).sort();
+
+  const ownerOptions = Array.from(
+    new Set(milestones.map(m => m[`_ownerid_value${FV}`] ?? '').filter(Boolean)),
+  ).sort();
+
+  const hasFilter = !!(nameFilter || statusFilter || categoryFilter || ownerFilter);
+
   const displayed = milestones.filter(m => {
     const name = (m.msp_name ?? '').toLowerCase();
     const status = m[`msp_milestonestatus${FV}`] ?? String(m.msp_milestonestatus ?? '');
+    const category = m[`msp_milestonecategory${FV}`] ?? String(m.msp_milestonecategory ?? '');
+    const owner = m[`_ownerid_value${FV}`] ?? '';
     return (
       (!nameFilter || name.includes(nameFilter.toLowerCase())) &&
-      (!statusFilter || status === statusFilter)
+      (!statusFilter || status === statusFilter) &&
+      (!categoryFilter || category === categoryFilter) &&
+      (!ownerFilter || owner === ownerFilter)
     );
   });
 
@@ -429,8 +445,16 @@ export default function OpportunityMilestones() {
                 placeholder="Search by name…"
                 value={nameFilter}
                 onChange={e => setNameFilter(e.target.value)}
-                className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-48"
+                className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-44"
               />
+              <select
+                value={categoryFilter}
+                onChange={e => setCategoryFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">All Categories</option>
+                {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -439,13 +463,26 @@ export default function OpportunityMilestones() {
                 <option value="">All Statuses</option>
                 {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
-              {(nameFilter || statusFilter) && (
+              <select
+                value={ownerFilter}
+                onChange={e => setOwnerFilter(e.target.value)}
+                className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">All Owners</option>
+                {ownerOptions.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+              {hasFilter && (
                 <button
-                  onClick={() => { setNameFilter(''); setStatusFilter(''); }}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                  onClick={() => { setNameFilter(''); setStatusFilter(''); setCategoryFilter(''); setOwnerFilter(''); }}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer shrink-0"
                 >
                   Clear
                 </button>
+              )}
+              {hasFilter && (
+                <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto shrink-0">
+                  {displayed.length} of {milestones.length}
+                </span>
               )}
             </div>
           </div>

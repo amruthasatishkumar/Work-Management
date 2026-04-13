@@ -371,9 +371,13 @@ async function main() {
         log('auto-updater error: ' + (err && err.message ? err.message : String(err)));
       });
 
-      autoUpdater.checkForUpdates().catch((err) => {
+      const doCheck = () => autoUpdater.checkForUpdates().catch((err) => {
         log('checkForUpdates failed: ' + (err && err.message ? err.message : String(err)));
       });
+
+      // Check on startup, then every 4 hours
+      doCheck();
+      setInterval(doCheck, 4 * 60 * 60 * 1000);
     }
 
   } catch (err) {
