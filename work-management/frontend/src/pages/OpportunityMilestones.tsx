@@ -529,7 +529,7 @@ export default function OpportunityMilestones() {
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
                       {[
-                        'Milestone ID', 'Name', 'Customer Commitment',
+                        'Name', 'Customer Commitment',
                         'Category', 'Est. Monthly Usage', 'Est. Date', 'Status', 'Owner', 'Actions',
                       ].map(col => (
                         <th key={col} className="px-4 py-3 text-left text-xs font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
@@ -553,9 +553,6 @@ export default function OpportunityMilestones() {
                           : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
                       return (
                         <tr key={mid} className="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
-                          <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap font-mono">
-                            {m.msp_milestonenumber ?? '—'}
-                          </td>
                           <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 max-w-xs">
                             <Link
                               to={`/opportunities/${oppId}/milestones/${mid}/tasks`}
@@ -563,6 +560,9 @@ export default function OpportunityMilestones() {
                             >
                               {m.msp_name ?? '—'}
                             </Link>
+                            {m.msp_milestonenumber && (
+                              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">{m.msp_milestonenumber}</p>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                             {fv(m, 'msp_commitmentrecommendation')}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ExternalLink } from 'lucide-react';
 import { api } from '../lib/api';
@@ -25,12 +25,11 @@ function statusBadgeClass(status: string | null): string {
 }
 
 const COLUMNS = [
-  'Milestone ID', 'Name', 'Opportunity', 'Account',
+  'Name', 'Opportunity', 'Account',
   'Customer Commitment', 'Category', 'Est. Monthly Usage', 'Est. Date', 'Status', 'Owner', 'Actions',
 ];
 
 export default function Milestones() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const nameFilter   = searchParams.get('name')    ?? '';
@@ -186,19 +185,28 @@ export default function Milestones() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                     {displayed.map(m => (
                       <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors">
-                        <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap font-mono">
-                          {m.milestone_number ?? '—'}
-                        </td>
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 max-w-xs">
-                          <span className="line-clamp-2">{m.name ?? '—'}</span>
+                          {m.msx_id ? (
+                            <Link
+                              to={`/opportunities/${m.opportunity_id}/milestones/${m.msx_id}/tasks`}
+                              className="line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                            >
+                              {m.name ?? '—'}
+                            </Link>
+                          ) : (
+                            <span className="line-clamp-2">{m.name ?? '—'}</span>
+                          )}
+                          {m.milestone_number && (
+                            <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">{m.milestone_number}</p>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 max-w-[200px]">
-                          <button
-                            onClick={() => navigate(`/opportunities/${m.opportunity_id}`)}
-                            className="text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer line-clamp-2 transition-colors"
+                          <Link
+                            to={`/opportunities/${m.opportunity_id}`}
+                            className="text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline line-clamp-2 transition-colors"
                           >
                             {m.opportunity_title ?? '—'}
-                          </button>
+                          </Link>
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                           {m.account_name ?? '—'}
