@@ -109,7 +109,7 @@ export const api = {
     tokenStatus: () => request<any>('/msx/token-status'),
     checkExisting: (oppMsxIds: string[]) => request<{ existing: string[] }>('/msx/check-existing', { method: 'POST', body: JSON.stringify({ oppMsxIds }) }),
     import: (data: any) => request<any>('/msx/import', { method: 'POST', body: JSON.stringify(data) }),
-    refreshOpp: (data: { localOppId: number; comments: any[]; activities: any[]; milestones?: any[]; solutionPlay?: string | null }) =>
+    refreshOpp: (data: { localOppId: number; comments: any[]; activities: any[]; msxActivityIds?: string[]; milestones?: any[]; solutionPlay?: string | null }) =>
       request<any>('/msx/refresh-opp', { method: 'POST', body: JSON.stringify(data) }),
     fetchOpp: (oppId: string) =>
       request<{ account: any; tpid: number; opp: any }>('/msx/fetch-opp', { method: 'POST', body: JSON.stringify({ oppId }) }),

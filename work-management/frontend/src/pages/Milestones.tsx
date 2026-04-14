@@ -465,15 +465,18 @@ export default function Milestones() {
 
         // Fetch activities (tasks) linked to each milestone
         const activities: any[] = [];
+        const msxActivityIds: string[] = [];
+        let allFetchesOk = true;
         for (const m of loaded) {
           const mid: string = m.msp_engagementmilestoneid;
           const ar = await fetch(
             `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${mid}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`,
             { headers: milestoneHeaders },
           );
-          if (!ar.ok) continue;
+          if (!ar.ok) { allFetchesOk = false; continue; }
           const aj = await ar.json();
           for (const act of (aj.value ?? [])) {
+            msxActivityIds.push(act.activityid);
             activities.push({
               msxId: act.activityid,
               subject: act.subject || '(No subject)',
@@ -487,7 +490,14 @@ export default function Milestones() {
           }
         }
 
-        await api.msx.refreshOpp({ localOppId, comments: [], activities, milestones: mapped }).catch(() => {});
+        // Pass msxActivityIds only when all fetches succeeded — prevents false-deletes on partial failure
+        await api.msx.refreshOpp({
+          localOppId,
+          comments: [],
+          activities,
+          msxActivityIds: allFetchesOk ? msxActivityIds : undefined,
+          milestones: mapped,
+        });
       }));
 
       await refetch();

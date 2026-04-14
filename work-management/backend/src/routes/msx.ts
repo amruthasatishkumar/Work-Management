@@ -201,7 +201,7 @@ router.post('/import', (req: Request, res: Response) => {
 // Live-sync: upserts fresh comments + MSX-linked activities for one opp.
 // Locally-created activities (no msx_id) are never touched.
 router.post('/refresh-opp', (req: Request, res: Response) => {
-  const { localOppId, comments, activities, milestones, solutionPlay } = req.body;
+  const { localOppId, comments, activities, msxActivityIds, milestones, solutionPlay } = req.body;
   if (!localOppId) return res.status(400).json({ error: 'localOppId required' });
 
   const opp = db.prepare('SELECT account_id FROM opportunities WHERE id = ?').get(localOppId) as any;
@@ -263,6 +263,18 @@ router.post('/refresh-opp', (req: Request, res: Response) => {
           db.prepare(
             'INSERT INTO opportunity_milestones (opportunity_id,msx_id,milestone_number,name,workload,commitment,category,monthly_use,milestone_date,status,owner,on_team) VALUES (?,?,?,?,?,?,?,?,?,?,?,1)'
           ).run(localOppId, m.msxId, m.milestoneNumber ?? null, m.name ?? null, m.workload ?? null, m.commitment ?? null, m.category ?? null, m.monthlyUse ?? null, m.milestoneDate ?? null, m.status ?? null, m.owner ?? null);
+        }
+      }
+
+      // Delete local MSX-linked activities no longer present in D365.
+      // Only fires when caller passes the complete current ID list (guards against partial-fetch false-deletes).
+      if (Array.isArray(msxActivityIds)) {
+        if (msxActivityIds.length === 0) {
+          db.prepare('DELETE FROM activities WHERE opportunity_id = ? AND msx_id IS NOT NULL').run(localOppId);
+        } else {
+          const placeholders = msxActivityIds.map(() => '?').join(',');
+          db.prepare(`DELETE FROM activities WHERE opportunity_id = ? AND msx_id IS NOT NULL AND msx_id NOT IN (${placeholders})`)
+            .run(localOppId, ...msxActivityIds);
         }
       }
 
