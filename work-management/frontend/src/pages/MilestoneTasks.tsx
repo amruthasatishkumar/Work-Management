@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { Badge, statusVariant, Spinner } from '../components/ui';
 import type { Activity } from '../lib/types';
@@ -18,7 +18,7 @@ export default function MilestoneTasks() {
   const oppId = Number(id);
 
   // Find the local milestone record by msx_id + opportunity_id
-  const { data: milestones = [], isLoading: milestoneLoading } = useQuery<any[]>({
+  const { data: milestones = [], isLoading: milestoneLoading, isFetching: milestonesFetching, refetch: refetchMilestones } = useQuery<any[]>({
     queryKey: ['milestones', { opportunity_id: oppId, msx_id: milestoneMsxId }],
     queryFn: () => api.milestones.list({ opportunity_id: oppId, msx_id: milestoneMsxId }),
     enabled: !!oppId && !!milestoneMsxId,
@@ -27,13 +27,15 @@ export default function MilestoneTasks() {
   const milestone = milestones[0] ?? null;
 
   // Fetch activities linked to this milestone
-  const { data: activities = [], isLoading: activitiesLoading } = useQuery<Activity[]>({
+  const { data: activities = [], isLoading: activitiesLoading, isFetching: activitiesFetching, refetch: refetchActivities } = useQuery<Activity[]>({
     queryKey: ['milestone-activities', milestone?.id],
     queryFn: () => api.milestones.getActivities(milestone!.id),
     enabled: !!milestone?.id,
   });
 
   const isLoading = milestoneLoading || (!!milestone && activitiesLoading);
+  const isRefreshing = milestonesFetching || activitiesFetching;
+  const handleRefresh = () => { refetchMilestones(); if (milestone) refetchActivities(); };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -59,6 +61,15 @@ export default function MilestoneTasks() {
             )}
           </div>
         </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title="Refresh"
+          className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50 cursor-pointer shrink-0"
+        >
+          <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
 
       {/* Milestone metadata bar */}
