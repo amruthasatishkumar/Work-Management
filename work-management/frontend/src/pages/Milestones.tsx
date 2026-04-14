@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users } from 'lucide-react';
@@ -542,124 +542,105 @@ export default function Milestones() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {displayed.map(m => {
+                    {displayed.flatMap(m => {
                       const isExpanded = expandedIds.has(m.id);
                       const isMember = m.msx_id ? (teamStatus[m.msx_id] ?? (m.on_team === 1)) : (m.on_team === 1);
                       const isActing = m.msx_id ? (actionStatus[m.msx_id] === 'joining' || actionStatus[m.msx_id] === 'leaving') : false;
-                      return (
-                        <React.Fragment key={m.id}>
-                          <tr
-                            key={m.id}
-                            className={`hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors ${isExpanded ? 'bg-slate-50 dark:bg-slate-700/30' : ''}`}
-                          >
-                            <td className="w-8 px-2 py-3">
-                              <button
-                                onClick={() => toggleExpand(m.id)}
-                                className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors cursor-pointer"
-                                title={isExpanded ? 'Collapse activities' : 'Expand activities'}
-                              >
-                                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                              </button>
-                            </td>
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 max-w-xs">
-                          {m.msx_id ? (
-                            <Link
-                              to={`/opportunities/${m.opportunity_id}/milestones/${m.msx_id}/tasks`}
-                              className="line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
-                            >
-                              {m.name ?? '—'}
-                            </Link>
-                          ) : (
-                            <span className="line-clamp-2">{m.name ?? '—'}</span>
-                          )}
-                          {m.milestone_number && (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">{m.milestone_number}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 max-w-[200px]">
-                          <Link
-                            to={`/opportunities/${m.opportunity_id}`}
-                            className="text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline line-clamp-2 transition-colors"
-                          >
-                            {m.opportunity_title ?? '—'}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {m.account_name ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {m.commitment ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {m.category ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {formatCurrency(m.monthly_use)}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {formatDate(m.milestone_date)}
-                        </td>
-                        <td className="px-4 py-3 text-xs whitespace-nowrap">
-                          {m.status
-                            ? <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(m.status)}`}>{m.status}</span>
-                            : <span className="text-slate-400">—</span>
-                          }
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                          {m.owner ?? '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            {/* 1. Toggle on_team */}
+                      const rows = [
+                        <tr
+                          key={m.id}
+                          className={`hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors ${isExpanded ? 'bg-slate-50 dark:bg-slate-700/30' : ''}`}
+                        >
+                          <td className="w-8 px-2 py-3">
                             <button
-                              onClick={() => m.msx_id ? toggleTeam(m) : undefined}
-                              disabled={isActing || !m.msx_id}
-                              title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
-                              className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
-                                isMember
-                                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
-                                  : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
-                              }`}
+                              onClick={() => toggleExpand(m.id)}
+                              className="p-0.5 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                              title={isExpanded ? 'Collapse activities' : 'Expand activities'}
                             >
-                              {isActing ? (<Loader2 size={14} className="animate-spin" />) : isMember ? (<CheckCircle2 size={14} />) : (<Users size={14} />)}
+                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             </button>
-                            {/* 2. Add activity (expand row + open form) */}
-                            <button
-                              onClick={() => openAddActivity(m.id)}
-                              title="Add activity"
-                              className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors cursor-pointer"
-                            >
-                              <Plus size={14} />
-                            </button>
-                            {/* 3. MSX link */}
-                            {m.msx_id && (
-                              <button
-                                onClick={() =>
-                                  (window as any).electronAPI?.openExternal(
-                                    `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
-                                  )
-                                }
-                                title="Open in MSX"
-                                className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 max-w-xs">
+                            {m.msx_id ? (
+                              <Link
+                                to={`/opportunities/${m.opportunity_id}/milestones/${m.msx_id}/tasks`}
+                                className="line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                               >
-                                <ExternalLink size={14} />
-                              </button>
+                                {m.name ?? '—'}
+                              </Link>
+                            ) : (
+                              <span className="line-clamp-2">{m.name ?? '—'}</span>
                             )}
-                          </div>
-                        </td>
-                      </tr>
-                          {isExpanded && (
-                            <tr key={`${m.id}-activities`} className="border-b border-slate-200 dark:border-slate-700">
-                              <td colSpan={COLUMNS.length + 1} className="p-0">
-                                <ExpandedActivities
-                                  milestone={m}
-                                  initialFormOpen={addFormIds.has(m.id)}
-                                />
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
+                            {m.milestone_number && (
+                              <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5">{m.milestone_number}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 max-w-[200px]">
+                            <Link
+                              to={`/opportunities/${m.opportunity_id}`}
+                              className="text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline line-clamp-2 transition-colors"
+                            >
+                              {m.opportunity_title ?? '—'}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{m.account_name ?? '—'}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{m.commitment ?? '—'}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{m.category ?? '—'}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{formatCurrency(m.monthly_use)}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{formatDate(m.milestone_date)}</td>
+                          <td className="px-4 py-3 text-xs whitespace-nowrap">
+                            {m.status
+                              ? <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(m.status)}`}>{m.status}</span>
+                              : <span className="text-slate-400">—</span>
+                            }
+                          </td>
+                          <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{m.owner ?? '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => m.msx_id ? toggleTeam(m) : undefined}
+                                disabled={isActing || !m.msx_id}
+                                title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
+                                className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
+                                  isMember
+                                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                    : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                {isActing ? <Loader2 size={14} className="animate-spin" /> : isMember ? <CheckCircle2 size={14} /> : <Users size={14} />}
+                              </button>
+                              <button
+                                onClick={() => openAddActivity(m.id)}
+                                title="Add activity"
+                                className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors cursor-pointer"
+                              >
+                                <Plus size={14} />
+                              </button>
+                              {m.msx_id && (
+                                <button
+                                  onClick={() => (window as any).electronAPI?.openExternal(
+                                    `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
+                                  )}
+                                  title="Open in MSX"
+                                  className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
+                                >
+                                  <ExternalLink size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>,
+                      ];
+                      if (isExpanded) {
+                        rows.push(
+                          <tr key={`${m.id}-exp`} className="border-b border-slate-200 dark:border-slate-700">
+                            <td colSpan={COLUMNS.length + 1} className="p-0">
+                              <ExpandedActivities milestone={m} initialFormOpen={addFormIds.has(m.id)} />
+                            </td>
+                          </tr>,
+                        );
+                      }
+                      return rows;
                     })}
                   </tbody>
                 </table>
