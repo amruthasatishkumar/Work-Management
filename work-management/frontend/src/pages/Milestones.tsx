@@ -420,7 +420,7 @@ export default function Milestones() {
         return;
       }
       const { headers } = ctx;
-      const milestoneHeaders = { ...headers, Prefer: 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"' };
+      const milestoneHeaders = { ...headers, Prefer: 'odata.maxpagesize=250,odata.include-annotations="OData.Community.Display.V1.FormattedValue"' };
 
       // Get unique opportunities (by local id) that have an MSX id
       const opps = new Map<number, string>();
@@ -440,6 +440,7 @@ export default function Milestones() {
         const json = await r.json();
         const loaded: any[] = json.value ?? [];
         if (loaded.length === 0) return;
+
         const mapped = loaded.map(m => ({
           msxId: m.msp_engagementmilestoneid,
           milestoneNumber: m.msp_milestonenumber ?? null,
@@ -452,7 +453,31 @@ export default function Milestones() {
           status: m[`msp_milestonestatus${FV}`] ?? m.msp_milestonestatus ?? null,
           owner: m[`_ownerid_value${FV}`] ?? null,
         }));
-        await api.msx.refreshOpp({ localOppId, comments: [], activities: [], milestones: mapped }).catch(() => {});
+
+        // Fetch activities (tasks) linked to each milestone
+        const activities: any[] = [];
+        for (const m of loaded) {
+          const mid: string = m.msp_engagementmilestoneid;
+          const ar = await fetch(
+            `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${mid}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`,
+            { headers: milestoneHeaders },
+          );
+          if (!ar.ok) continue;
+          const aj = await ar.json();
+          for (const act of (aj.value ?? [])) {
+            activities.push({
+              activityid: act.activityid,
+              subject: act.subject,
+              activitytypecode: act.activitytypecode,
+              statecode: act.statecode,
+              scheduledstart: act.scheduledstart ?? null,
+              actualend: act.actualend ?? null,
+              milestoneMsxId: mid,
+            });
+          }
+        }
+
+        await api.msx.refreshOpp({ localOppId, comments: [], activities, milestones: mapped }).catch(() => {});
       }));
 
       await refetch();
