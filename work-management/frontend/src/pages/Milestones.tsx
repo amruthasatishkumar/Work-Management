@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users } from 'lucide-react';
+import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users, UserMinus, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { type Milestone, type Activity } from '../lib/types';
@@ -32,6 +32,87 @@ const COLUMNS = [
 const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
 const D365_BASE = 'https://microsoftsales.crm.dynamics.com/api/data/v9.2';
 const MILESTONE_TEAM_TEMPLATE_ID = '316e4735-9e83-eb11-a812-0022481e1be0';
+
+const TASK_CATEGORIES = [
+  { label: 'Technical Close/Win Plan', value: 606820005 },
+  { label: 'Architecture Design Session', value: 861980004 },
+  { label: 'Blocker Escalation', value: 861980006 },
+  { label: 'Briefing', value: 861980008 },
+  { label: 'Consumption Plan', value: 861980007 },
+  { label: 'Demo', value: 861980002 },
+  { label: 'PoC/Pilot', value: 861980005 },
+  { label: 'Workshop', value: 861980001 },
+];
+
+// ── Create Task Modal ─────────────────────────────────────────────────────
+
+function CreateTaskModal({
+  milestoneName,
+  onSubmit,
+  onClose,
+  loading,
+}: {
+  milestoneName: string;
+  onSubmit: (category: { label: string; value: number }, dueDate: string) => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  const [category, setCategory] = useState(TASK_CATEGORIES[0]);
+  const [dueDate, setDueDate] = useState('');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">Create Task</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer"><X size={16} /></button>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Milestone: <span className="font-medium text-slate-700 dark:text-slate-200">{milestoneName}</span>
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Task Category</label>
+            <select
+              value={category.value}
+              onChange={e => setCategory(TASK_CATEGORIES.find(c => c.value === Number(e.target.value))!)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {TASK_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Due Date <span className="text-slate-400">(optional)</span>
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={e => setDueDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSubmit(category, dueDate)}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+          >
+            {loading && <Loader2 size={13} className="animate-spin" />}
+            Create Task
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Expanded activities sub-row ───────────────────────────────────────────────
 function ExpandedActivities({ milestone, initialFormOpen }: { milestone: Milestone; initialFormOpen?: boolean }) {
@@ -284,7 +365,8 @@ export default function Milestones() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-  const [addFormIds, setAddFormIds] = useState<Set<number>>(new Set());
+  const [taskModal, setTaskModal] = useState<{ milestone: Milestone } | null>(null);
+  const [taskLoading, setTaskLoading] = useState(false);
 
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => {
@@ -294,19 +376,14 @@ export default function Milestones() {
     });
   };
 
-  // Plus button: expand + open add-activity form
-  const openAddActivity = (id: number) => {
-    setExpandedIds(prev => { const s = new Set(prev); s.add(id); return s; });
-    setAddFormIds(prev => { const s = new Set(prev); s.add(id); return s; });
-  };
-
   // ── D365 team toggle ────────────────────────────────────────────────────────
   const [teamStatus, setTeamStatus] = useState<Record<string, boolean>>({});
   const [actionStatus, setActionStatus] = useState<Record<string, string | null>>({});
   const [teamError, setTeamError] = useState<string | null>(null);
   const cachedUserIdRef = useRef<string | null>(null);
+  const cachedUserNameRef = useRef<string | null>(null);
 
-  const getHeaders = useCallback(async (): Promise<{ headers: Record<string, string>; userId: string } | null> => {
+  const getHeaders = useCallback(async (): Promise<{ headers: Record<string, string>; userId: string; userName: string } | null> => {
     const tokenData = await api.msx.tokenStatus().catch(() => null);
     if (!tokenData?.valid) return null;
     const headers: Record<string, string> = {
@@ -321,8 +398,9 @@ export default function Milestones() {
       if (!r.ok) return null;
       const { UserId } = await r.json();
       cachedUserIdRef.current = UserId.toLowerCase().replace(/[{}]/g, '');
+      cachedUserNameRef.current = tokenData.userId ?? '';
     }
-    return { headers, userId: cachedUserIdRef.current! };
+    return { headers, userId: cachedUserIdRef.current!, userName: cachedUserNameRef.current ?? '' };
   }, []);
 
   const toggleTeam = async (m: Milestone) => {
@@ -365,6 +443,41 @@ export default function Milestones() {
       setTeamError(err.message);
     } finally {
       setActionStatus(p => ({ ...p, [mid]: null }));
+    }
+  };
+
+  const createTask = async (category: { label: string; value: number }, dueDate: string) => {
+    if (!taskModal) return;
+    setTaskLoading(true);
+    try {
+      const ctx = await getHeaders();
+      if (!ctx) throw new Error('No valid MSX token. Run "az login" first.');
+      const { headers, userId, userName } = ctx;
+      const initials = userName
+        ? String(userName).split(' ').map((n: string) => n.charAt(0).toUpperCase()).join('')
+        : '';
+      const taskData: Record<string, any> = {
+        subject: `SE HoK - ${category.label} - ${taskModal.milestone.name} - ${initials}`,
+        msp_taskcategory: category.value,
+        scheduleddurationminutes: 60,
+        prioritycode: 1,
+        'ownerid@odata.bind': `/systemusers(${userId})`,
+      };
+      if (taskModal.milestone.msx_id) {
+        taskData['regardingobjectid_msp_engagementmilestone@odata.bind'] =
+          `/msp_engagementmilestones(${taskModal.milestone.msx_id})`;
+      }
+      if (dueDate) taskData.scheduledend = `${dueDate}T00:00:00Z`;
+      const r = await fetch(`${D365_BASE}/tasks`, { method: 'POST', headers, body: JSON.stringify(taskData) });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e?.error?.message ?? `HTTP ${r.status}`);
+      }
+      setTaskModal(null);
+    } catch (err: any) {
+      setTeamError(err.message);
+    } finally {
+      setTaskLoading(false);
     }
   };
 
@@ -597,32 +710,38 @@ export default function Milestones() {
                           <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">{m.owner ?? '—'}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
+                              {/* Join / Leave Team */}
                               <button
                                 onClick={() => m.msx_id ? toggleTeam(m) : undefined}
                                 disabled={isActing || !m.msx_id}
-                                title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
-                                className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
+                                title={isMember ? 'Leave Milestone Team' : 'Join Milestone Team'}
+                                className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 ${
                                   isMember
-                                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
-                                    : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                                    ? 'text-emerald-600 dark:text-emerald-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500'
+                                    : 'text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600'
                                 }`}
                               >
-                                {isActing ? <Loader2 size={14} className="animate-spin" /> : isMember ? <CheckCircle2 size={14} /> : <Users size={14} />}
+                                {isActing
+                                  ? <Loader2 size={14} className="animate-spin" />
+                                  : isMember ? <UserMinus size={14} /> : <Users size={14} />
+                                }
                               </button>
+                              {/* Create Task */}
                               <button
-                                onClick={() => openAddActivity(m.id)}
-                                title="Add activity"
-                                className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors cursor-pointer"
+                                onClick={() => setTaskModal({ milestone: m })}
+                                title="Create Task"
+                                className="p-1.5 rounded-md text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
                               >
                                 <Plus size={14} />
                               </button>
+                              {/* Open in MSX */}
                               {m.msx_id && (
                                 <button
                                   onClick={() => (window as any).electronAPI?.openExternal(
                                     `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
                                   )}
                                   title="Open in MSX"
-                                  className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
+                                  className="p-1.5 rounded-md text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
                                 >
                                   <ExternalLink size={14} />
                                 </button>
@@ -635,7 +754,7 @@ export default function Milestones() {
                         rows.push(
                           <tr key={`${m.id}-exp`} className="border-b border-slate-200 dark:border-slate-700">
                             <td colSpan={COLUMNS.length + 1} className="p-0">
-                              <ExpandedActivities milestone={m} initialFormOpen={addFormIds.has(m.id)} />
+                              <ExpandedActivities milestone={m} />
                             </td>
                           </tr>,
                         );
@@ -649,6 +768,14 @@ export default function Milestones() {
           </>
         )}
       </div>
+      {taskModal && (
+        <CreateTaskModal
+          milestoneName={taskModal.milestone.name ?? ''}
+          onSubmit={createTask}
+          onClose={() => setTaskModal(null)}
+          loading={taskLoading}
+        />
+      )}
     </div>
   );
 }
