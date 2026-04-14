@@ -482,6 +482,7 @@ export default function Milestones() {
       }));
 
       await refetch();
+      qc.invalidateQueries({ queryKey: ['milestone-activities'] });
     } catch (err: any) {
       setTeamError(err.message);
     } finally {
