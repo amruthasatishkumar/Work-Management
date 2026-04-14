@@ -32,6 +32,12 @@ const COLUMNS = [
 const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
 const D365_BASE = 'https://microsoftsales.crm.dynamics.com/api/data/v9.2';
 const MILESTONE_TEAM_TEMPLATE_ID = '316e4735-9e83-eb11-a812-0022481e1be0';
+const FV = '@OData.Community.Display.V1.FormattedValue';
+const MILESTONE_SELECT = [
+  'msp_engagementmilestoneid', 'msp_milestonenumber', 'msp_name',
+  '_msp_workloadlkid_value', 'msp_commitmentrecommendation', 'msp_milestonecategory',
+  'msp_monthlyuse', 'msp_milestonedate', 'msp_milestonestatus', '_ownerid_value',
+].join(',');
 
 const TASK_CATEGORIES = [
   { label: 'Technical Close/Win Plan', value: 606820005 },
@@ -367,6 +373,7 @@ export default function Milestones() {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [taskModal, setTaskModal] = useState<{ milestone: Milestone } | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => {
@@ -402,6 +409,59 @@ export default function Milestones() {
     }
     return { headers, userId: cachedUserIdRef.current!, userName: cachedUserNameRef.current ?? '' };
   }, []);
+
+  const refreshFromMSX = async () => {
+    setRefreshing(true);
+    setTeamError(null);
+    try {
+      const ctx = await getHeaders();
+      if (!ctx) {
+        setTeamError("No valid MSX token. Run 'az login' in a terminal to sign in.");
+        return;
+      }
+      const { headers } = ctx;
+      const milestoneHeaders = { ...headers, Prefer: 'odata.include-annotations="OData.Community.Display.V1.FormattedValue"' };
+
+      // Get unique opportunities (by local id) that have an MSX id
+      const opps = new Map<number, string>();
+      (milestones as Milestone[]).forEach(m => {
+        if (m.opportunity_id && m.opportunity_msx_id) {
+          opps.set(m.opportunity_id, m.opportunity_msx_id);
+        }
+      });
+
+      await Promise.all(Array.from(opps.entries()).map(async ([localOppId, oppMsxId]) => {
+        const cleanId = oppMsxId.replace(/[{}]/g, '');
+        const r = await fetch(
+          `${D365_BASE}/msp_engagementmilestones?$filter=_msp_opportunityid_value eq '${cleanId}'&$select=${MILESTONE_SELECT}&$orderby=msp_milestonedate`,
+          { headers: milestoneHeaders },
+        );
+        if (!r.ok) return;
+        const json = await r.json();
+        const loaded: any[] = json.value ?? [];
+        if (loaded.length === 0) return;
+        const mapped = loaded.map(m => ({
+          msxId: m.msp_engagementmilestoneid,
+          milestoneNumber: m.msp_milestonenumber ?? null,
+          name: m.msp_name ?? null,
+          workload: m[`_msp_workloadlkid_value${FV}`] ?? null,
+          commitment: m[`msp_commitmentrecommendation${FV}`] ?? m.msp_commitmentrecommendation ?? null,
+          category: m[`msp_milestonecategory${FV}`] ?? m.msp_milestonecategory ?? null,
+          monthlyUse: m.msp_monthlyuse ?? null,
+          milestoneDate: m.msp_milestonedate ? m.msp_milestonedate.split('T')[0] : null,
+          status: m[`msp_milestonestatus${FV}`] ?? m.msp_milestonestatus ?? null,
+          owner: m[`_ownerid_value${FV}`] ?? null,
+        }));
+        await api.msx.refreshOpp({ localOppId, comments: [], activities: [], milestones: mapped }).catch(() => {});
+      }));
+
+      await refetch();
+    } catch (err: any) {
+      setTeamError(err.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const toggleTeam = async (m: Milestone) => {
     if (!m.msx_id) return;
@@ -556,11 +616,11 @@ export default function Milestones() {
         subtitle={`${milestones.length} milestone${milestones.length !== 1 ? 's' : ''} across your opportunities`}
         action={
           <button
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={refreshFromMSX}
+            disabled={refreshing}
             className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50 cursor-pointer"
           >
-            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             Refresh
           </button>
         }
