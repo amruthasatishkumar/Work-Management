@@ -466,12 +466,13 @@ export default function Milestones() {
           const aj = await ar.json();
           for (const act of (aj.value ?? [])) {
             activities.push({
-              activityid: act.activityid,
-              subject: act.subject,
-              activitytypecode: act.activitytypecode,
-              statecode: act.statecode,
-              scheduledstart: act.scheduledstart ?? null,
-              actualend: act.actualend ?? null,
+              msxId: act.activityid,
+              subject: act.subject || '(No subject)',
+              type: (['email', 'phonecall', 'appointment', 'teams_meeting'].includes(act.activitytypecode)) ? 'Meeting' : 'Other',
+              entityType: act.activitytypecode,
+              status: act.statecode === 1 ? 'Completed' : act.statecode === 2 ? 'Blocked' : 'To Do',
+              date: act.scheduledstart ? act.scheduledstart.split('T')[0] : new Date().toISOString().split('T')[0],
+              completedDate: act.actualend ? act.actualend.split('T')[0] : null,
               milestoneMsxId: mid,
             });
           }
