@@ -128,12 +128,11 @@ function ExpandedActivities({ milestone, refreshKey }: { milestone: Milestone; r
   const { data: activities = [], isLoading, refetch: refetchActivities } = useQuery<Activity[]>({
     queryKey,
     queryFn: () => api.milestones.getActivities(milestone.id),
+    staleTime: 0, // always fetch fresh when this row expands
   });
 
-  // When parent triggers a refresh, force a fresh fetch from the server
-  const isFirstRender = useRef(true);
+  // When parent triggers a refresh (refreshKey increments), force a live refetch
   useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
     if (refreshKey !== undefined && refreshKey > 0) {
       refetchActivities();
     }
