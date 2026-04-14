@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, RefreshCw, ExternalLink, Users, UserMinus, Plus,
-  Loader2, AlertCircle, X,
+  ArrowLeft, RefreshCw, Users, UserMinus, Plus,
+  Loader2, AlertCircle, X, CheckCircle2,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
@@ -131,6 +131,128 @@ function CreateTaskModal({
   );
 }
 
+// ── Add Activity Modal ───────────────────────────────────────────────────────
+const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
+
+function AddActivityModal({
+  milestoneMsxId,
+  milestoneName,
+  oppId,
+  onClose,
+}: {
+  milestoneMsxId: string;
+  milestoneName: string;
+  oppId: number;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [purpose, setPurpose] = useState('');
+  const [type, setType] = useState('Other');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [error, setError] = useState<string | null>(null);
+
+  // Resolve local milestone by msx_id
+  const { data: localMilestones = [] } = useQuery({
+    queryKey: ['milestones-by-msx', milestoneMsxId],
+    queryFn: () => api.milestones.list({ msx_id: milestoneMsxId }),
+  });
+  const localMilestone = (localMilestones as any[])[0];
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.activities.create(data),
+    onSuccess: () => {
+      if (localMilestone) {
+        qc.invalidateQueries({ queryKey: ['milestone-activities', localMilestone.id] });
+      }
+      qc.invalidateQueries({ queryKey: ['activities'] });
+      onClose();
+    },
+    onError: (err: any) => setError(err.message),
+  });
+
+  const handleAdd = () => {
+    if (!purpose.trim()) { setError('Purpose is required'); return; }
+    if (!localMilestone) { setError('Local milestone not found — import from MSX first.'); return; }
+    if (!localMilestone.account_id) { setError('Account not resolved for this milestone.'); return; }
+    setError(null);
+    createMutation.mutate({
+      account_id:     localMilestone.account_id,
+      opportunity_id: oppId,
+      milestone_id:   localMilestone.id,
+      type,
+      purpose:        purpose.trim(),
+      date,
+      status:         'To Do',
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">Add Activity</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Milestone: <span className="font-medium text-slate-700 dark:text-slate-200">{milestoneName}</span>
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Purpose *</label>
+            <input
+              autoFocus
+              type="text"
+              value={purpose}
+              onChange={e => setPurpose(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') onClose(); }}
+              placeholder="e.g. Architecture review session"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Type</label>
+            <select
+              value={type}
+              onChange={e => setType(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {ACT_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAdd}
+            disabled={createMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+          >
+            {createMutation.isPending && <Loader2 size={13} className="animate-spin" />}
+            Add Activity
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function OpportunityMilestones() {
@@ -151,6 +273,7 @@ export default function OpportunityMilestones() {
   const [actionStatus, setActionStatus] = useState<Record<string, string | null>>({});
   const [taskModal, setTaskModal] = useState<{ milestoneId: string; milestoneName: string } | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
+  const [addActivityModal, setAddActivityModal] = useState<{ msxId: string; name: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const nameFilter    = searchParams.get('name')     ?? '';
@@ -587,41 +710,41 @@ export default function OpportunityMilestones() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
-                              {/* Join / Leave Team */}
+                              {/* 1. Join / Leave Team */}
                               <button
                                 onClick={() => toggleTeam(mid)}
                                 disabled={isActing}
-                                title={isMember ? 'Leave Milestone Team' : 'Join Milestone Team'}
+                                title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
                                 className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-40 ${
                                   isMember
-                                    ? 'text-emerald-600 dark:text-emerald-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500'
-                                    : 'text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600'
+                                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                    : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
                                 }`}
                               >
                                 {isActing
-                                  ? <Loader2 size={14} className="animate-spin" />
-                                  : isMember ? <UserMinus size={14} /> : <Users size={14} />
+                                  ? (<Loader2 size={14} className="animate-spin" />)
+                                  : isMember ? (<UserMinus size={14} />) : (<Users size={14} />)
                                 }
                               </button>
-                              {/* Create Task */}
+                              {/* 2. Add Activity */}
                               <button
-                                onClick={() => setTaskModal({ milestoneId: mid, milestoneName: m.msp_name ?? '' })}
-                                title="Create Task"
-                                className="p-1.5 rounded-md text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
+                                onClick={() => setAddActivityModal({ msxId: mid, name: m.msp_name ?? '' })}
+                                title="Add activity"
+                                className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors cursor-pointer"
                               >
                                 <Plus size={14} />
                               </button>
-                              {/* Open in MSX */}
+                              {/* 3. Open in MSX — CheckCircle (always linked on this page) */}
                               <button
                                 onClick={() =>
                                   (window as any).electronAPI?.openExternal(
                                     `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${mid}`,
                                   )
                                 }
-                                title="Open in MSX"
-                                className="p-1.5 rounded-md text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
+                                title="Open in MSX (linked)"
+                                className="p-1.5 rounded-md text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 transition-colors cursor-pointer"
                               >
-                                <ExternalLink size={14} />
+                                <CheckCircle2 size={14} />
                               </button>
                             </div>
                           </td>
@@ -643,6 +766,16 @@ export default function OpportunityMilestones() {
           onSubmit={createTask}
           onClose={() => setTaskModal(null)}
           loading={taskLoading}
+        />
+      )}
+
+      {/* Add Activity Modal */}
+      {addActivityModal && (
+        <AddActivityModal
+          milestoneMsxId={addActivityModal.msxId}
+          milestoneName={addActivityModal.name}
+          oppId={oppId}
+          onClose={() => setAddActivityModal(null)}
         />
       )}
     </div>
