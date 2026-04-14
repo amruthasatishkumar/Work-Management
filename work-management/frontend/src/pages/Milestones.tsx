@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users, UserMinus, X } from 'lucide-react';
+import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users, UserMinus, X, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { type Milestone, type Activity } from '../lib/types';
@@ -498,7 +498,7 @@ export default function Milestones() {
     }, { replace: true });
   };
 
-  const { data: milestones = [], isLoading } = useQuery({
+  const { data: milestones = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: queryKeys.milestones.all(),
     queryFn: () => api.milestones.list(),
   });
@@ -572,6 +572,17 @@ export default function Milestones() {
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide shrink-0">
                   Filter:
                 </span>
+                <div className="ml-auto">
+                  <button
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                    title="Refresh milestones"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 cursor-pointer disabled:cursor-default transition-colors"
+                  >
+                    <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
+                    {isFetching ? 'Refreshing…' : 'Refresh'}
+                  </button>
+                </div>
                 <input
                   type="text"
                   placeholder="Search by name…"
