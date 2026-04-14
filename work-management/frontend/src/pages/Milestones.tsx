@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users } from 'lucide-react';
@@ -544,8 +544,10 @@ export default function Milestones() {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                     {displayed.map(m => {
                       const isExpanded = expandedIds.has(m.id);
+                      const isMember = m.msx_id ? (teamStatus[m.msx_id] ?? (m.on_team === 1)) : (m.on_team === 1);
+                      const isActing = m.msx_id ? (actionStatus[m.msx_id] === 'joining' || actionStatus[m.msx_id] === 'leaving') : false;
                       return (
-                        <>
+                        <React.Fragment key={m.id}>
                           <tr
                             key={m.id}
                             className={`hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors ${isExpanded ? 'bg-slate-50 dark:bg-slate-700/30' : ''}`}
@@ -609,24 +611,18 @@ export default function Milestones() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
                             {/* 1. Toggle on_team */}
-                            {(() => {
-                              const isMember = m.msx_id ? (teamStatus[m.msx_id] ?? (m.on_team === 1)) : (m.on_team === 1);
-                              const isActing = m.msx_id ? (actionStatus[m.msx_id] === 'joining' || actionStatus[m.msx_id] === 'leaving') : false;
-                              return (
-                                <button
-                                  onClick={() => m.msx_id ? toggleTeam(m) : undefined}
-                                  disabled={isActing || !m.msx_id}
-                                  title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
-                                  className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
-                                    isMember
-                                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
-                                      : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
-                                  }`}
-                                >
-                                  {isActing ? (<Loader2 size={14} className="animate-spin" />) : isMember ? (<CheckCircle2 size={14} />) : (<Users size={14} />)}
-                                </button>
-                              );
-                            })()}
+                            <button
+                              onClick={() => m.msx_id ? toggleTeam(m) : undefined}
+                              disabled={isActing || !m.msx_id}
+                              title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
+                              className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
+                                isMember
+                                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                  : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              {isActing ? (<Loader2 size={14} className="animate-spin" />) : isMember ? (<CheckCircle2 size={14} />) : (<Users size={14} />)}
+                            </button>
                             {/* 2. Add activity (expand row + open form) */}
                             <button
                               onClick={() => openAddActivity(m.id)}
@@ -662,7 +658,7 @@ export default function Milestones() {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
