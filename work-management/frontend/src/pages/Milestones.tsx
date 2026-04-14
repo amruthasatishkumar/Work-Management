@@ -544,24 +544,20 @@ export default function Milestones() {
                             >
                               <Plus size={14} />
                             </button>
-                            {/* 3. MSX link — CheckCircle when linked, ExternalLink when not */}
-                            <button
-                              onClick={() =>
-                                m.msx_id &&
-                                (window as any).electronAPI?.openExternal(
-                                  `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
-                                )
-                              }
-                              title={m.msx_id ? 'Open in MSX (linked)' : 'Not yet linked to MSX'}
-                              disabled={!m.msx_id}
-                              className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default ${
-                                m.msx_id
-                                  ? 'text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700'
-                                  : 'text-slate-400 dark:text-slate-500'
-                              }`}
-                            >
-                              {m.msx_id ? (<CheckCircle2 size={14} />) : (<ExternalLink size={14} />)}
-                            </button>
+                            {/* 3. MSX link */}
+                            {m.msx_id && (
+                              <button
+                                onClick={() =>
+                                  (window as any).electronAPI?.openExternal(
+                                    `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
+                                  )
+                                }
+                                title="Open in MSX"
+                                className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
+                              >
+                                <ExternalLink size={14} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

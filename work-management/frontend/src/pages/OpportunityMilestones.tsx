@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, RefreshCw, Users, Plus,
-  Loader2, AlertCircle, X, CheckCircle2,
+  ArrowLeft, RefreshCw, ExternalLink, Users, Plus,
+  Loader2, AlertCircle, X,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
@@ -734,17 +734,17 @@ export default function OpportunityMilestones() {
                               >
                                 <Plus size={14} />
                               </button>
-                              {/* 3. Open in MSX — CheckCircle (always linked on this page) */}
+                              {/* 3. Open in MSX */}
                               <button
                                 onClick={() =>
                                   (window as any).electronAPI?.openExternal(
                                     `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${mid}`,
                                   )
                                 }
-                                title="Open in MSX (linked)"
-                                className="p-1.5 rounded-md text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 transition-colors cursor-pointer"
+                                title="Open in MSX"
+                                className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
                               >
-                                <CheckCircle2 size={14} />
+                                <ExternalLink size={14} />
                               </button>
                             </div>
                           </td>
