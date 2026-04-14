@@ -121,14 +121,23 @@ function CreateTaskModal({
 }
 
 // ── Expanded activities sub-row ───────────────────────────────────────────────
-function ExpandedActivities({ milestone, initialFormOpen }: { milestone: Milestone; initialFormOpen?: boolean }) {
+function ExpandedActivities({ milestone, refreshKey }: { milestone: Milestone; refreshKey?: number }) {
   const qc = useQueryClient();
   const queryKey = ['milestone-activities', milestone.id];
 
-  const { data: activities = [], isLoading } = useQuery<Activity[]>({
+  const { data: activities = [], isLoading, refetch: refetchActivities } = useQuery<Activity[]>({
     queryKey,
     queryFn: () => api.milestones.getActivities(milestone.id),
   });
+
+  // When parent triggers a refresh, force a fresh fetch from the server
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (refreshKey !== undefined && refreshKey > 0) {
+      refetchActivities();
+    }
+  }, [refreshKey]);
 
   // ── Add activity inline form state ────────────────────────────────────────
   const [showForm, setShowForm] = useState(initialFormOpen ?? false);
@@ -374,6 +383,7 @@ export default function Milestones() {
   const [taskModal, setTaskModal] = useState<{ milestone: Milestone } | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [activitiesRefreshKey, setActivitiesRefreshKey] = useState(0);
 
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => {
@@ -482,7 +492,7 @@ export default function Milestones() {
       }));
 
       await refetch();
-      qc.invalidateQueries({ queryKey: ['milestone-activities'] });
+      setActivitiesRefreshKey(k => k + 1);
     } catch (err: any) {
       setTeamError(err.message);
     } finally {
@@ -851,7 +861,7 @@ export default function Milestones() {
                         rows.push(
                           <tr key={`${m.id}-exp`} className="border-b border-slate-200 dark:border-slate-700">
                             <td colSpan={COLUMNS.length + 1} className="p-0">
-                              <ExpandedActivities milestone={m} />
+                              <ExpandedActivities milestone={m} refreshKey={activitiesRefreshKey} />
                             </td>
                           </tr>,
                         );
