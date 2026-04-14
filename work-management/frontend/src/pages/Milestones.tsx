@@ -523,12 +523,6 @@ export default function Milestones() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            {m.msx_id && (
-                              <button
-                                onClick={() =>
-                                  (window as any).electronAPI?.openExternal(
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
                             {/* 1. Toggle on_team */}
                             <button
                               onClick={() => onTeamMutation.mutate({ id: m.id, on_team: m.on_team === 1 ? 0 : 1 })}
@@ -566,7 +560,7 @@ export default function Milestones() {
                                   : 'text-slate-400 dark:text-slate-500'
                               }`}
                             >
-                              {m.msx_id ? <CheckCircle2 size={14} /> : <ExternalLink size={14} />}
+                              {m.msx_id ? (<CheckCircle2 size={14} />) : (<ExternalLink size={14} />)}
                             </button>
                           </div>
                         </td>
