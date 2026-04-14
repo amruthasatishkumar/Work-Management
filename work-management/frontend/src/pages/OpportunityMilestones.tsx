@@ -723,7 +723,7 @@ export default function OpportunityMilestones() {
                               >
                                 {isActing
                                   ? (<Loader2 size={14} className="animate-spin" />)
-                                  : (<Users size={14} />)
+                                  : isMember ? (<CheckCircle2 size={14} />) : (<Users size={14} />)
                                 }
                               </button>
                               {/* 2. Add Activity */}

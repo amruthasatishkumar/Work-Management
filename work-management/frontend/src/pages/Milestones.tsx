@@ -534,7 +534,7 @@ export default function Milestones() {
                                   : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
                               }`}
                             >
-                              <Users size={14} />
+                              {m.on_team === 1 ? (<CheckCircle2 size={14} />) : (<Users size={14} />)}
                             </button>
                             {/* 2. Add activity (expand row + open form) */}
                             <button
