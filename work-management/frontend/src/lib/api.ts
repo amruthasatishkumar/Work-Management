@@ -127,5 +127,10 @@ export const api = {
       return request<any[]>(`/milestones${qs}`);
     },
     getActivities: (milestoneId: number) => request<any[]>(`/milestones/${milestoneId}/activities`),
+    setOnTeam: (milestoneId: number, on_team: 0 | 1) =>
+      request<{ id: number; on_team: 0 | 1 }>(`/milestones/${milestoneId}/on_team`, {
+        method: 'PATCH',
+        body: JSON.stringify({ on_team }),
+      }),
   },
 };

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { type Milestone, type Activity } from '../lib/types';
@@ -29,12 +29,120 @@ const COLUMNS = [
   'Customer Commitment', 'Category', 'Est. Monthly Usage', 'Est. Date', 'Status', 'Owner', 'Actions',
 ];
 
+const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
+const D365_BASE = 'https://microsoftsales.crm.dynamics.com/api/data/v9.2';
+
 // ── Expanded activities sub-row ───────────────────────────────────────────────
-function ExpandedActivities({ milestoneId }: { milestoneId: number }) {
+function ExpandedActivities({ milestone, initialFormOpen }: { milestone: Milestone; initialFormOpen?: boolean }) {
+  const qc = useQueryClient();
+  const queryKey = ['milestone-activities', milestone.id];
+
   const { data: activities = [], isLoading } = useQuery<Activity[]>({
-    queryKey: ['milestone-activities', milestoneId],
-    queryFn: () => api.milestones.getActivities(milestoneId),
+    queryKey,
+    queryFn: () => api.milestones.getActivities(milestone.id),
   });
+
+  // ── Add activity inline form state ────────────────────────────────────────
+  const [showForm, setShowForm] = useState(initialFormOpen ?? false);
+  const [purpose, setPurpose] = useState('');
+  const [type, setType] = useState('Other');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.activities.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ['activities'] });
+      setPurpose(''); setType('Other'); setDate(new Date().toISOString().split('T')[0]);
+      setShowForm(false); setFormError(null);
+    },
+    onError: (err: any) => setFormError(err.message),
+  });
+
+  const handleAdd = () => {
+    if (!purpose.trim()) { setFormError('Purpose is required'); return; }
+    if (!milestone.account_id) { setFormError('Account not resolved for this milestone'); return; }
+    createMutation.mutate({
+      account_id:     milestone.account_id,
+      opportunity_id: milestone.opportunity_id,
+      milestone_id:   milestone.id,
+      type,
+      purpose:        purpose.trim(),
+      date,
+      status:         'To Do',
+    });
+  };
+
+  // ── Push to MSX ───────────────────────────────────────────────────────────
+  const [pushingId, setPushingId] = useState<number | null>(null);
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  async function pushToMsx(act: Activity) {
+    setPushingId(act.id); setPushError(null);
+    try {
+      const tokenData = await api.msx.tokenStatus();
+      if (!tokenData.valid) throw new Error('No valid MSX token. Run "az login" first.');
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${tokenData.accessToken}`,
+        'Content-Type': 'application/json',
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+        Prefer: 'return=representation',
+      };
+      const body: Record<string, any> = {
+        subject: act.purpose,
+        scheduledend: act.date + 'T00:00:00Z',
+      };
+      // Bind to the milestone as the regarding object (preferred over opportunity)
+      if (milestone.msx_id) {
+        body['regardingobjectid_msp_engagementmilestone@odata.bind'] =
+          `/msp_engagementmilestones(${milestone.msx_id})`;
+      } else if (act.opportunity_msx_id) {
+        body['regardingobjectid_opportunity@odata.bind'] =
+          `/opportunities(${act.opportunity_msx_id})`;
+      }
+      if (act.notes) body.description = act.notes;
+
+      if (act.msx_id) {
+        const res = await fetch(`${D365_BASE}/tasks(${act.msx_id})`, { method: 'PATCH', headers, body: JSON.stringify(body) });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message ?? `HTTP ${res.status}`); }
+      } else {
+        const res = await fetch(`${D365_BASE}/tasks`, { method: 'POST', headers, body: JSON.stringify(body) });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message ?? `HTTP ${res.status}`); }
+        const created = await res.json();
+        await api.activities.saveMsxId(act.id, created.activityid);
+      }
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ['activities'] });
+    } catch (err: any) {
+      setPushError(err.message);
+    } finally {
+      setPushingId(null);
+    }
+  }
+
+  async function deleteFromMsx(act: Activity) {
+    if (!act.msx_id) return;
+    setPushingId(act.id); setPushError(null);
+    try {
+      const tokenData = await api.msx.tokenStatus();
+      if (!tokenData.valid) throw new Error('No valid MSX token.');
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${tokenData.accessToken}`,
+        'OData-MaxVersion': '4.0', 'OData-Version': '4.0',
+      };
+      const res = await fetch(`${D365_BASE}/tasks(${act.msx_id})`, { method: 'DELETE', headers });
+      if (!res.ok && res.status !== 404) { const e = await res.json().catch(() => ({})); throw new Error(e?.error?.message ?? `HTTP ${res.status}`); }
+      await api.activities.saveMsxId(act.id, null);
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ['activities'] });
+    } catch (err: any) {
+      setPushError(err.message);
+    } finally {
+      setPushingId(null);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -43,53 +151,139 @@ function ExpandedActivities({ milestoneId }: { milestoneId: number }) {
       </div>
     );
   }
-  if (activities.length === 0) {
-    return (
-      <div className="px-8 py-3 text-xs text-slate-400 dark:text-slate-500 italic">
-        No activities linked to this milestone yet. Re-import from MSX to sync.
-      </div>
-    );
-  }
+
   return (
-    <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900/40">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="border-b border-slate-200 dark:border-slate-700">
-            {['Subject / Purpose', 'Type', 'Date', 'Due Date', 'Status'].map(h => (
-              <th key={h} className="px-3 pb-2 pt-1 text-left font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-          {activities.map(act => (
-            <tr key={act.id} className="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
-              <td className="px-3 py-2 text-slate-800 dark:text-slate-100 max-w-xs">
-                <Link
-                  to={`/activities/${act.id}`}
-                  className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline line-clamp-2"
-                >
-                  {act.purpose}
-                </Link>
-              </td>
-              <td className="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{act.type}</td>
-              <td className="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(act.date)}</td>
-              <td className="px-3 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{act.due_date ? formatDate(act.due_date) : '—'}</td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <Badge label={act.status} variant={statusVariant(act.status)} />
-              </td>
+    <div className="bg-slate-50 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-700">
+      {/* Activities table */}
+      {activities.length > 0 ? (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-slate-700">
+              {['Subject / Purpose', 'Type', 'Date', 'Due Date', 'Status', ''].map(h => (
+                <th key={h} className="px-4 pb-2 pt-3 text-left font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {activities.map(act => (
+              <tr key={act.id} className="hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
+                <td className="px-4 py-2 text-slate-800 dark:text-slate-100 max-w-xs">
+                  <Link to={`/activities/${act.id}`} className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline line-clamp-2">
+                    {act.purpose}
+                  </Link>
+                </td>
+                <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{act.type}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(act.date)}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{act.due_date ? formatDate(act.due_date) : '—'}</td>
+                <td className="px-4 py-2 whitespace-nowrap"><Badge label={act.status} variant={statusVariant(act.status)} /></td>
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <button
+                    onClick={() => act.msx_id ? deleteFromMsx(act) : pushToMsx(act)}
+                    disabled={pushingId === act.id}
+                    title={act.msx_id ? 'Synced to MSX — click to remove' : 'Push to MSX'}
+                    className={`group flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium transition-colors cursor-pointer disabled:opacity-40 ${
+                      act.msx_id
+                        ? 'border-emerald-500 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:border-red-400 hover:text-red-500 dark:hover:text-red-400'
+                        : 'border-blue-400 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                    }`}
+                  >
+                    {pushingId === act.id
+                      ? <Loader2 size={11} className="animate-spin" />
+                      : act.msx_id
+                        ? <><CheckCircle2 size={11} className="group-hover:hidden" /><Trash2 size={11} className="hidden group-hover:block" /></>
+                        : <Upload size={11} />
+                    }
+                    <span>{pushingId === act.id ? '…' : act.msx_id ? 'Synced' : 'Push'}</span>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        !showForm && (
+          <p className="px-4 py-3 text-xs text-slate-400 dark:text-slate-500 italic">
+            No activities linked yet. Re-import from MSX or add one below.
+          </p>
+        )
+      )}
+
+      {/* Push error */}
+      {pushError && (
+        <p className="mx-4 mt-1 text-xs text-red-500 dark:text-red-400">{pushError}</p>
+      )}
+
+      {/* Inline add form */}
+      {showForm ? (
+        <div className="flex items-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex-wrap">
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-slate-500 dark:text-slate-400">Purpose *</label>
+            <input
+              autoFocus
+              type="text"
+              value={purpose}
+              onChange={e => setPurpose(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setShowForm(false); }}
+              placeholder="e.g. Architecture review session"
+              className="px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 w-72"
+            />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-slate-500 dark:text-slate-400">Type</label>
+            <select
+              value={type}
+              onChange={e => setType(e.target.value)}
+              className="px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {ACT_TYPES.map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-slate-500 dark:text-slate-400">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="px-2.5 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <button
+            onClick={handleAdd}
+            disabled={createMutation.isPending}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+          >
+            {createMutation.isPending ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+            Add
+          </button>
+          <button
+            onClick={() => { setShowForm(false); setFormError(null); }}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+          >
+            Cancel
+          </button>
+          {formError && <p className="text-xs text-red-500 dark:text-red-400">{formError}</p>}
+        </div>
+      ) : (
+        <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+          >
+            <Plus size={12} /> Add activity
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function Milestones() {
+  const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [addFormIds, setAddFormIds] = useState<Set<number>>(new Set());
 
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => {
@@ -98,6 +292,18 @@ export default function Milestones() {
       return next;
     });
   };
+
+  // Plus button: expand + open add-activity form
+  const openAddActivity = (id: number) => {
+    setExpandedIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    setAddFormIds(prev => { const s = new Set(prev); s.add(id); return s; });
+  };
+
+  const onTeamMutation = useMutation({
+    mutationFn: ({ id, on_team }: { id: number; on_team: 0 | 1 }) =>
+      api.milestones.setOnTeam(id, on_team),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.milestones.all() }),
+  });
 
   const nameFilter   = searchParams.get('name')    ?? '';
   const statusFilter = searchParams.get('status')  ?? '';
@@ -321,22 +527,57 @@ export default function Milestones() {
                               <button
                                 onClick={() =>
                                   (window as any).electronAPI?.openExternal(
-                                    `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
-                                  )
-                                }
-                                title="Open in MSX"
-                                className="p-1.5 rounded-md text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 transition-colors cursor-pointer"
-                              >
-                                <ExternalLink size={14} />
-                              </button>
-                            )}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            {/* 1. Toggle on_team */}
+                            <button
+                              onClick={() => onTeamMutation.mutate({ id: m.id, on_team: m.on_team === 1 ? 0 : 1 })}
+                              disabled={onTeamMutation.isPending}
+                              title={m.on_team === 1 ? 'On milestone team — click to remove' : 'Add to milestone team'}
+                              className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
+                                m.on_team === 1
+                                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                  : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              <Users size={14} />
+                            </button>
+                            {/* 2. Add activity (expand row + open form) */}
+                            <button
+                              onClick={() => openAddActivity(m.id)}
+                              title="Add activity"
+                              className="p-1.5 rounded-md text-slate-400 dark:text-slate-500 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 transition-colors cursor-pointer"
+                            >
+                              <Plus size={14} />
+                            </button>
+                            {/* 3. MSX link — CheckCircle when linked, ExternalLink when not */}
+                            <button
+                              onClick={() =>
+                                m.msx_id &&
+                                (window as any).electronAPI?.openExternal(
+                                  `https://microsoftsales.crm.dynamics.com/main.aspx?etn=msp_engagementmilestone&pagetype=entityrecord&id=${m.msx_id}`,
+                                )
+                              }
+                              title={m.msx_id ? 'Open in MSX (linked)' : 'Not yet linked to MSX'}
+                              disabled={!m.msx_id}
+                              className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default ${
+                                m.msx_id
+                                  ? 'text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700'
+                                  : 'text-slate-400 dark:text-slate-500'
+                              }`}
+                            >
+                              {m.msx_id ? <CheckCircle2 size={14} /> : <ExternalLink size={14} />}
+                            </button>
                           </div>
                         </td>
                       </tr>
                           {isExpanded && (
                             <tr key={`${m.id}-activities`} className="border-b border-slate-200 dark:border-slate-700">
                               <td colSpan={COLUMNS.length + 1} className="p-0">
-                                <ExpandedActivities milestoneId={m.id} />
+                                <ExpandedActivities
+                                  milestone={m}
+                                  initialFormOpen={addFormIds.has(m.id)}
+                                />
                               </td>
                             </tr>
                           )}

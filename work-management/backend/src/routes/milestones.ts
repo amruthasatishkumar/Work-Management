@@ -9,9 +9,11 @@ router.get('/', (req: Request, res: Response) => {
 
   let query = `
     SELECT om.*,
-           o.title AS opportunity_title,
-           a.name  AS account_name,
-           t.name  AS territory_name
+           o.title      AS opportunity_title,
+           o.account_id AS account_id,
+           o.msx_id     AS opportunity_msx_id,
+           a.name       AS account_name,
+           t.name       AS territory_name
     FROM opportunity_milestones om
     JOIN opportunities o ON o.id = om.opportunity_id
     JOIN accounts      a ON a.id = o.account_id
@@ -29,6 +31,18 @@ router.get('/', (req: Request, res: Response) => {
   query += ' ORDER BY om.milestone_date ASC, om.id ASC';
 
   res.json(db.prepare(query).all(...params));
+});
+
+// PATCH /api/milestones/:id/on_team — toggle on_team flag
+router.patch('/:id/on_team', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const { on_team } = req.body as { on_team: 0 | 1 };
+  if (on_team !== 0 && on_team !== 1) {
+    res.status(400).json({ error: 'on_team must be 0 or 1' });
+    return;
+  }
+  db.prepare('UPDATE opportunity_milestones SET on_team = ? WHERE id = ?').run(on_team, id);
+  res.json({ id, on_team });
 });
 
 // GET /api/milestones/:id/activities — activities linked to a specific local milestone

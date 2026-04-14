@@ -97,6 +97,8 @@ export interface Milestone {
   status: string | null;
   owner: string | null;
   on_team: number; // 0 | 1
+  account_id?: number;
+  opportunity_msx_id?: string | null;
   opportunity_title?: string;
   account_name?: string;
   territory_name?: string;
