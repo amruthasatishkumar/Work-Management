@@ -554,6 +554,16 @@ export default function Milestones() {
       <PageHeader
         title="Milestones"
         subtitle={`${milestones.length} milestone${milestones.length !== 1 ? 's' : ''} across your opportunities`}
+        action={
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        }
       />
 
       <div className="p-6 space-y-4">
@@ -572,17 +582,6 @@ export default function Milestones() {
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide shrink-0">
                   Filter:
                 </span>
-                <div className="ml-auto">
-                  <button
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    title="Refresh milestones"
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 cursor-pointer disabled:cursor-default transition-colors"
-                  >
-                    <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
-                    {isFetching ? 'Refreshing…' : 'Refresh'}
-                  </button>
-                </div>
                 <input
                   type="text"
                   placeholder="Search by name…"
