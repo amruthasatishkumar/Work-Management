@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, RefreshCw, Users, UserMinus, Plus,
+  ArrowLeft, RefreshCw, Users, Plus,
   Loader2, AlertCircle, X, CheckCircle2,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -723,7 +723,7 @@ export default function OpportunityMilestones() {
                               >
                                 {isActing
                                   ? (<Loader2 size={14} className="animate-spin" />)
-                                  : isMember ? (<UserMinus size={14} />) : (<Users size={14} />)
+                                  : (<Users size={14} />)
                                 }
                               </button>
                               {/* 2. Add Activity */}
