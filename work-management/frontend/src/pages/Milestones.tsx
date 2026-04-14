@@ -140,7 +140,7 @@ function ExpandedActivities({ milestone, refreshKey }: { milestone: Milestone; r
   }, [refreshKey]);
 
   // ── Add activity inline form state ────────────────────────────────────────
-  const [showForm, setShowForm] = useState(initialFormOpen ?? false);
+  const [showForm, setShowForm] = useState(false);
   const [purpose, setPurpose] = useState('');
   const [type, setType] = useState('Other');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
