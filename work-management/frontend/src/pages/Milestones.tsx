@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users } from 'lucide-react';
@@ -31,6 +31,7 @@ const COLUMNS = [
 
 const ACT_TYPES = ['Demo', 'Meeting', 'POC', 'Architecture Review', 'Follow up Meeting', 'Other'];
 const D365_BASE = 'https://microsoftsales.crm.dynamics.com/api/data/v9.2';
+const MILESTONE_TEAM_TEMPLATE_ID = '316e4735-9e83-eb11-a812-0022481e1be0';
 
 // ── Expanded activities sub-row ───────────────────────────────────────────────
 function ExpandedActivities({ milestone, initialFormOpen }: { milestone: Milestone; initialFormOpen?: boolean }) {
@@ -299,11 +300,73 @@ export default function Milestones() {
     setAddFormIds(prev => { const s = new Set(prev); s.add(id); return s; });
   };
 
-  const onTeamMutation = useMutation({
-    mutationFn: ({ id, on_team }: { id: number; on_team: 0 | 1 }) =>
-      api.milestones.setOnTeam(id, on_team),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.milestones.all() }),
-  });
+  // ── D365 team toggle ────────────────────────────────────────────────────────
+  const [teamStatus, setTeamStatus] = useState<Record<string, boolean>>({});
+  const [actionStatus, setActionStatus] = useState<Record<string, string | null>>({});
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const cachedUserIdRef = useRef<string | null>(null);
+
+  const getHeaders = useCallback(async (): Promise<{ headers: Record<string, string>; userId: string } | null> => {
+    const tokenData = await api.msx.tokenStatus().catch(() => null);
+    if (!tokenData?.valid) return null;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${tokenData.accessToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'OData-MaxVersion': '4.0',
+      'OData-Version': '4.0',
+    };
+    if (!cachedUserIdRef.current) {
+      const r = await fetch(`${D365_BASE}/WhoAmI`, { headers });
+      if (!r.ok) return null;
+      const { UserId } = await r.json();
+      cachedUserIdRef.current = UserId.toLowerCase().replace(/[{}]/g, '');
+    }
+    return { headers, userId: cachedUserIdRef.current! };
+  }, []);
+
+  const toggleTeam = async (m: Milestone) => {
+    if (!m.msx_id) return;
+    const mid = m.msx_id;
+    const isMember = teamStatus[mid] ?? (m.on_team === 1);
+    setActionStatus(p => ({ ...p, [mid]: isMember ? 'leaving' : 'joining' }));
+    setTeamError(null);
+    try {
+      const ctx = await getHeaders();
+      if (!ctx) throw new Error('No valid MSX token. Run "az login" first.');
+      const { headers, userId } = ctx;
+      const action = isMember ? 'RemoveUserFromRecordTeam' : 'AddUserToRecordTeam';
+      const r = await fetch(
+        `${D365_BASE}/systemusers(${userId})/Microsoft.Dynamics.CRM.${action}`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            Record: {
+              '@odata.type': 'Microsoft.Dynamics.CRM.msp_engagementmilestone',
+              msp_engagementmilestoneid: mid,
+            },
+            TeamTemplate: {
+              '@odata.type': 'Microsoft.Dynamics.CRM.teamtemplate',
+              teamtemplateid: MILESTONE_TEAM_TEMPLATE_ID,
+            },
+          }),
+        },
+      );
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e?.error?.message ?? `HTTP ${r.status}`);
+      }
+      const newVal = !isMember;
+      setTeamStatus(p => ({ ...p, [mid]: newVal }));
+      // Also sync to local DB
+      api.milestones.setOnTeam(m.id, newVal ? 1 : 0).catch(() => {});
+    } catch (err: any) {
+      setTeamError(err.message);
+    } finally {
+      setActionStatus(p => ({ ...p, [mid]: null }));
+    }
+  };
 
   const nameFilter   = searchParams.get('name')    ?? '';
   const statusFilter = searchParams.get('status')  ?? '';
@@ -326,6 +389,20 @@ export default function Milestones() {
     queryKey: queryKeys.milestones.all(),
     queryFn: () => api.milestones.list(),
   });
+
+  // Seed teamStatus from local DB on_team when milestones first load
+  useEffect(() => {
+    if ((milestones as Milestone[]).length === 0) return;
+    setTeamStatus(prev => {
+      const next = { ...prev };
+      (milestones as Milestone[]).forEach(m => {
+        if (m.msx_id && !(m.msx_id in next)) {
+          next[m.msx_id] = m.on_team === 1;
+        }
+      });
+      return next;
+    });
+  }, [milestones]);
 
   const statusOptions = useMemo(() =>
     Array.from(new Set((milestones as Milestone[]).map(m => m.status ?? '').filter(Boolean))).sort(),
@@ -442,6 +519,14 @@ export default function Milestones() {
               </div>
             </div>
 
+            {/* Team error */}
+            {teamError && (
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2 text-sm text-red-700 dark:text-red-300">
+                <span className="flex-1">{teamError}</span>
+                <button onClick={() => setTeamError(null)} className="text-red-400 hover:text-red-600 cursor-pointer">✕</button>
+              </div>
+            )}
+
             {/* Table */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
               <div className="overflow-x-auto">
@@ -524,18 +609,24 @@ export default function Milestones() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
                             {/* 1. Toggle on_team */}
-                            <button
-                              onClick={() => onTeamMutation.mutate({ id: m.id, on_team: m.on_team === 1 ? 0 : 1 })}
-                              disabled={onTeamMutation.isPending}
-                              title={m.on_team === 1 ? 'On milestone team — click to remove' : 'Add to milestone team'}
-                              className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
-                                m.on_team === 1
-                                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
-                                  : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
-                              }`}
-                            >
-                              {m.on_team === 1 ? (<CheckCircle2 size={14} />) : (<Users size={14} />)}
-                            </button>
+                            {(() => {
+                              const isMember = m.msx_id ? (teamStatus[m.msx_id] ?? (m.on_team === 1)) : (m.on_team === 1);
+                              const isActing = m.msx_id ? (actionStatus[m.msx_id] === 'joining' || actionStatus[m.msx_id] === 'leaving') : false;
+                              return (
+                                <button
+                                  onClick={() => m.msx_id ? toggleTeam(m) : undefined}
+                                  disabled={isActing || !m.msx_id}
+                                  title={isMember ? 'On milestone team — click to remove' : 'Add to milestone team'}
+                                  className={`p-1.5 rounded-md transition-colors cursor-pointer disabled:opacity-50 ${
+                                    isMember
+                                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                      : 'text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                                  }`}
+                                >
+                                  {isActing ? (<Loader2 size={14} className="animate-spin" />) : isMember ? (<CheckCircle2 size={14} />) : (<Users size={14} />)}
+                                </button>
+                              );
+                            })()}
                             {/* 2. Add activity (expand row + open form) */}
                             <button
                               onClick={() => openAddActivity(m.id)}
