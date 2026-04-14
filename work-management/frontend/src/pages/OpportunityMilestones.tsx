@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, RefreshCw, ExternalLink, Users, Plus,
-  Loader2, AlertCircle, X,
+  Loader2, AlertCircle, X, CheckCircle2,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
