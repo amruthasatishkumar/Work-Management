@@ -45,8 +45,18 @@ export default function MSXAccounts() {
         setError("No valid MSX token. Run 'az login' in a terminal to sign in.");
         return;
       }
+      // Get current user ID first so we can filter strictly to accounts they own
+      // (EqualUserOrUserTeams pulls accounts owned by any team they're in — too broad).
+      const whoRes = await fetch(`${D365_BASE}/WhoAmI`, { headers });
+      if (!whoRes.ok) {
+        const e = await whoRes.json().catch(() => ({}));
+        throw new Error(e?.error?.message ?? `WhoAmI failed: HTTP ${whoRes.status}`);
+      }
+      const who = await whoRes.json();
+      const userId = who.UserId;
+
       const r = await fetch(
-        `${D365_BASE}/accounts?$filter=Microsoft.Dynamics.CRM.EqualUserOrUserTeams(PropertyName='ownerid')&$select=${ACCOUNT_SELECT}&$orderby=name&$top=500`,
+        `${D365_BASE}/accounts?$filter=_ownerid_value eq ${userId}&$select=${ACCOUNT_SELECT}&$orderby=name&$top=500`,
         { headers },
       );
       if (!r.ok) {
