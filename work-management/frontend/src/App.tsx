@@ -16,6 +16,7 @@ import SEWork from './pages/SEWork';
 import Milestones from './pages/Milestones';
 import Chat from './pages/Chat';
 import MSXImport from './pages/MSXImport';
+import MSXAccounts from './pages/MSXAccounts';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="milestones" element={<Milestones />} />
             <Route path="chat" element={<Chat />} />
             <Route path="msx-import" element={<MSXImport />} />
+            <Route path="msx-accounts" element={<MSXAccounts />} />
           </Route>
         </Routes>
       </BrowserRouter>

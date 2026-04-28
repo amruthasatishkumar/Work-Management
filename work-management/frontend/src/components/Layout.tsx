@@ -17,12 +17,14 @@ import {
   Flag,
   ArrowDownToLine,
   RefreshCw,
+  Globe,
 } from 'lucide-react';
 
 const NAV = [
   { to: '/dashboard',          label: 'Dashboard',           Icon: LayoutDashboard },
   { to: '/territories',        label: 'Territories',         Icon: Map },
   { to: '/accounts',           label: 'Accounts',            Icon: Building2 },
+  { to: '/msx-accounts',       label: 'MSX Accounts',        Icon: Globe },
   { to: '/opportunities',      label: 'Opportunities',       Icon: TrendingUp },
   { to: '/milestones',         label: 'Milestones',          Icon: Flag },
   { to: '/activities',         label: 'Activities',          Icon: Zap },
