@@ -242,13 +242,14 @@ router.post('/refresh-opp', (req: Request, res: Response) => {
         const localMilestoneId = act.milestoneMsxId
           ? (db.prepare('SELECT id FROM opportunity_milestones WHERE msx_id = ?').get(act.milestoneMsxId) as any)?.id ?? null
           : null;
+        const actPriority = act.priority ?? 'Medium';
         if (existing) {
-          db.prepare('UPDATE activities SET type = ?, purpose = ?, date = ?, status = ?, completed_date = ?, milestone_id = COALESCE(?, milestone_id) WHERE msx_id = ?')
-            .run(act.type, act.subject, actDate, act.status, act.completedDate ?? null, localMilestoneId, act.msxId);
+          db.prepare('UPDATE activities SET type = ?, purpose = ?, date = ?, status = ?, priority = ?, completed_date = ?, milestone_id = COALESCE(?, milestone_id) WHERE msx_id = ?')
+            .run(act.type, act.subject, actDate, act.status, actPriority, act.completedDate ?? null, localMilestoneId, act.msxId);
         } else {
           db.prepare(
-            'INSERT INTO activities (account_id, opportunity_id, milestone_id, type, purpose, date, status, completed_date, msx_id, msx_entity_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          ).run(accountId, localOppId, localMilestoneId, act.type, act.subject, actDate, act.status, act.completedDate ?? null, act.msxId, act.entityType ?? 'task');
+            'INSERT INTO activities (account_id, opportunity_id, milestone_id, type, purpose, date, status, priority, completed_date, msx_id, msx_entity_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          ).run(accountId, localOppId, localMilestoneId, act.type, act.subject, actDate, act.status, actPriority, act.completedDate ?? null, act.msxId, act.entityType ?? 'task');
         }
       }
 

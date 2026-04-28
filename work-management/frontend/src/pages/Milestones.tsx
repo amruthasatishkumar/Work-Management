@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users, UserMinus, X, RefreshCw } from 'lucide-react';
+import { ExternalLink, ChevronRight, ChevronDown, Loader2, Plus, Upload, CheckCircle2, Trash2, Users, UserMinus, X, RefreshCw, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { queryKeys } from '../lib/queryKeys';
 import { type Milestone, type Activity } from '../lib/types';
@@ -59,12 +59,13 @@ function CreateTaskModal({
   loading,
 }: {
   milestoneName: string;
-  onSubmit: (category: { label: string; value: number }, dueDate: string) => void;
+  onSubmit: (category: { label: string; value: number }, dueDate: string, purpose: string) => void;
   onClose: () => void;
   loading: boolean;
 }) {
   const [category, setCategory] = useState(TASK_CATEGORIES[0]);
   const [dueDate, setDueDate] = useState('');
+  const [purpose, setPurpose] = useState('');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -77,6 +78,17 @@ function CreateTaskModal({
           Milestone: <span className="font-medium text-slate-700 dark:text-slate-200">{milestoneName}</span>
         </p>
         <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Purpose <span className="text-red-400">*</span></label>
+            <input
+              type="text"
+              autoFocus
+              value={purpose}
+              onChange={e => setPurpose(e.target.value)}
+              placeholder="e.g. Architecture review session"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Task Category</label>
             <select
@@ -107,8 +119,8 @@ function CreateTaskModal({
             Cancel
           </button>
           <button
-            onClick={() => onSubmit(category, dueDate)}
-            disabled={loading}
+            onClick={() => onSubmit(category, dueDate, purpose)}
+            disabled={loading || !purpose.trim()}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
           >
             {loading && <Loader2 size={13} className="animate-spin" />}
@@ -255,7 +267,7 @@ function ExpandedActivities({ milestone, refreshKey }: { milestone: Milestone; r
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700">
-              {['Subject / Purpose', 'Type', 'Date', 'Due Date', 'Status', ''].map(h => (
+              {['Subject / Purpose', 'Type', 'Date', 'Due Date', 'Priority', 'Status', ''].map(h => (
                 <th key={h} className="px-4 pb-2 pt-3 text-left font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
                   {h}
                 </th>
@@ -273,6 +285,13 @@ function ExpandedActivities({ milestone, refreshKey }: { milestone: Milestone; r
                 <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{act.type}</td>
                 <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatDate(act.date)}</td>
                 <td className="px-4 py-2 text-slate-500 dark:text-slate-400 whitespace-nowrap">{act.due_date ? formatDate(act.due_date) : '—'}</td>
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <span className={`text-xs font-medium ${
+                    act.priority === 'High' ? 'text-red-500 dark:text-red-400' :
+                    act.priority === 'Low' ? 'text-slate-400 dark:text-slate-500' :
+                    'text-slate-600 dark:text-slate-300'
+                  }`}>{act.priority ?? 'Medium'}</span>
+                </td>
                 <td className="px-4 py-2 whitespace-nowrap"><Badge label={act.status} variant={statusVariant(act.status)} /></td>
                 <td className="px-4 py-2 whitespace-nowrap">
                   <button
@@ -383,6 +402,7 @@ export default function Milestones() {
   const [taskLoading, setTaskLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activitiesRefreshKey, setActivitiesRefreshKey] = useState(0);
+  const [showRefreshWarning, setShowRefreshWarning] = useState(false);
 
   const toggleExpand = (id: number) => {
     setExpandedIds(prev => {
@@ -470,7 +490,7 @@ export default function Milestones() {
         for (const m of loaded) {
           const mid: string = m.msp_engagementmilestoneid;
           const ar = await fetch(
-            `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${mid}'&$select=activityid,subject,activitytypecode,statecode,scheduledstart,actualend`,
+            `${D365_BASE}/activitypointers?$filter=_regardingobjectid_value eq '${mid}'&$select=activityid,subject,activitytypecode,statecode,prioritycode,scheduledstart,actualend`,
             { headers: milestoneHeaders },
           );
           if (!ar.ok) { allFetchesOk = false; continue; }
@@ -483,6 +503,7 @@ export default function Milestones() {
               type: (['email', 'phonecall', 'appointment', 'teams_meeting'].includes(act.activitytypecode)) ? 'Meeting' : 'Other',
               entityType: act.activitytypecode,
               status: act.statecode === 1 ? 'Completed' : act.statecode === 2 ? 'Blocked' : 'To Do',
+              priority: act.prioritycode === 0 ? 'Low' : act.prioritycode === 2 ? 'High' : 'Medium',
               date: act.scheduledstart ? act.scheduledstart.split('T')[0] : new Date().toISOString().split('T')[0],
               completedDate: act.actualend ? act.actualend.split('T')[0] : null,
               milestoneMsxId: mid,
@@ -552,7 +573,7 @@ export default function Milestones() {
     }
   };
 
-  const createTask = async (category: { label: string; value: number }, dueDate: string) => {
+  const createTask = async (category: { label: string; value: number }, dueDate: string, purpose: string) => {
     if (!taskModal) return;
     setTaskLoading(true);
     try {
@@ -563,7 +584,7 @@ export default function Milestones() {
         ? String(userName).split(' ').map((n: string) => n.charAt(0).toUpperCase()).join('')
         : '';
       const taskData: Record<string, any> = {
-        subject: `SE HoK - ${category.label} - ${taskModal.milestone.name} - ${initials}`,
+        subject: purpose.trim() || `SE HoK - ${category.label} - ${taskModal.milestone.name} - ${initials}`,
         msp_taskcategory: category.value,
         scheduleddurationminutes: 60,
         prioritycode: 1,
@@ -662,7 +683,7 @@ export default function Milestones() {
         subtitle={`${milestones.length} milestone${milestones.length !== 1 ? 's' : ''} across your opportunities`}
         action={
           <button
-            onClick={refreshFromMSX}
+            onClick={() => setShowRefreshWarning(true)}
             disabled={refreshing}
             className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-50 cursor-pointer"
           >
@@ -884,6 +905,38 @@ export default function Milestones() {
           </>
         )}
       </div>
+      {showRefreshWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 w-full max-w-md shadow-xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 shrink-0 text-amber-500"><AlertCircle size={20} /></div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">Sync from MSX?</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  Any local status changes to activities already synced to MSX will be overwritten with the latest values from MSX.
+                </p>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  Push any activities you want to keep in MSX before continuing.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowRefreshWarning(false)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowRefreshWarning(false); refreshFromMSX(); }}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
+              >
+                Refresh Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {taskModal && (
         <CreateTaskModal
           milestoneName={taskModal.milestone.name ?? ''}

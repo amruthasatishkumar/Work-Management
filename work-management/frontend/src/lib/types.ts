@@ -75,6 +75,7 @@ export interface Activity {
   due_date: string | null;
   completed_date: string | null;
   status: 'To Do' | 'In Progress' | 'Completed' | 'Blocked';
+  priority: 'Low' | 'Medium' | 'High';
   position: number;
   notes: string | null;
   msx_id: string | null;
