@@ -11,11 +11,11 @@ const ACCOUNT_SELECT = [
   'name',
   'accountnumber',
   'address1_city',
+  'address1_stateorprovince',
+  'address1_country',
   'msp_mstopparentid',
   '_ownerid_value',
   '_parentaccountid_value',
-  'msp_parentinglevel',
-  'msp_segment',
 ].join(',');
 
 export default function MSXAccounts() {
@@ -140,7 +140,7 @@ export default function MSXAccounts() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
-                    {['Account Name', 'Account ID', 'Owner', 'City', 'TPID', 'Parenting Level', 'Segment', ''].map(h => (
+                    {['Account Name', 'Account ID', 'Owner', 'City', 'State', 'Country', 'TPID', ''].map(h => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap"
@@ -177,14 +177,14 @@ export default function MSXAccounts() {
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {a.address1_city ?? '—'}
                         </td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                          {a.address1_stateorprovince ?? '—'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                          {a.address1_country ?? '—'}
+                        </td>
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">
                           {a.msp_mstopparentid ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                          {a[`msp_parentinglevel${FV}`] ?? a.msp_parentinglevel ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                          {a[`msp_segment${FV}`] ?? a.msp_segment ?? '—'}
                         </td>
                         <td className="px-4 py-3">
                           <button
