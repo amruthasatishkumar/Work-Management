@@ -157,7 +157,7 @@ async function searchD365ByTpids(
       const opps = await d365Get<any>(
         accessToken,
         // statecode eq 0 = Open only (excludes Won/Lost historical records)
-        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${account.accountid}' and statecode eq 0&$select=opportunityid,name,description,statecode,estimatedclosedate,msp_opportunitytype,msp_salesplay,msp_activesalesstage`
+        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${account.accountid}' and statecode eq 0`
       );
       const oppsWithMilestones: any[] = [];
       for (const opp of opps) {
@@ -191,6 +191,20 @@ async function searchD365ByTpids(
     }
   }
   return results;
+}
+
+// Find a D365 field whose key contains a given fragment, preferring FormattedValue.
+function pickOppFieldRaw(obj: any, fragments: string[]): string | null {
+  if (!obj) return null;
+  const keys = Object.keys(obj);
+  for (const frag of fragments) {
+    const f = frag.toLowerCase();
+    const fvKey = keys.find(k => k.toLowerCase().includes(f) && k.endsWith('@OData.Community.Display.V1.FormattedValue'));
+    if (fvKey && obj[fvKey] != null && obj[fvKey] !== '') return String(obj[fvKey]);
+    const rawKey = keys.find(k => k.toLowerCase().includes(f) && !k.includes('@'));
+    if (rawKey && obj[rawKey] != null && obj[rawKey] !== '') return String(obj[rawKey]);
+  }
+  return null;
 }
 
 function mapOppStatus(statecode: number): string {
@@ -564,8 +578,8 @@ export default function MSXImport() {
             solutionPlay: (opp as any)['msp_salesplay@OData.Community.Display.V1.FormattedValue'] ?? null,
             opportunityIntent: (opp as any)['msp_opportunitytype@OData.Community.Display.V1.FormattedValue'] ?? null,
             activeSalesStage: (opp as any)['msp_activesalesstage@OData.Community.Display.V1.FormattedValue'] ?? (opp as any).msp_activesalesstage ?? null,
-            solutionArea: null,
-            recommendation: null,
+            solutionArea: pickOppFieldRaw(opp, ['solutionarea']),
+            recommendation: pickOppFieldRaw(opp, ['recommendation', 'forecastrecommendation', 'forecastcategory']),
             link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
             milestones: (opp.milestones ?? []).map((m: MsxMilestone) => ({
               msxId: m.msxId,
