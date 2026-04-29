@@ -114,7 +114,7 @@ export default function MSXAccounts() {
   return (
     <div>
       <PageHeader
-        title="MSX Accounts"
+        title="All Accounts"
         subtitle={subtitle}
         action={
           <button

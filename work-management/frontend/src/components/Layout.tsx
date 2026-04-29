@@ -24,13 +24,13 @@ const NAV = [
   { to: '/dashboard',          label: 'Dashboard',           Icon: LayoutDashboard },
   { to: '/territories',        label: 'Territories',         Icon: Map },
   { to: '/accounts',           label: 'Accounts',            Icon: Building2 },
-  { to: '/msx-accounts',       label: 'MSX Accounts',        Icon: Globe },
   { to: '/opportunities',      label: 'Opportunities',       Icon: TrendingUp },
   { to: '/milestones',         label: 'Milestones',          Icon: Flag },
   { to: '/activities',         label: 'Activities',          Icon: Zap },
   { to: '/tasks',              label: 'Activity Management', Icon: CheckSquare },
   { to: '/se-work',            label: 'SE Work',             Icon: BriefcaseBusiness },
   { to: '/chat',               label: 'Assistant',           Icon: Bot },
+  { to: '/msx-accounts',       label: 'All Accounts',        Icon: Globe },
   { to: '/msx-import',         label: 'MSX Import',          Icon: Download },
 ];
 
