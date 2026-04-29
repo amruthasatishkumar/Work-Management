@@ -275,6 +275,15 @@ ipcMain.handle('update:install', () => {
   autoUpdater.quitAndInstall();
 });
 
+ipcMain.handle('update:check', async () => {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return { ok: true, version: result?.updateInfo?.version ?? null };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,9 +384,19 @@ async function main() {
         log('checkForUpdates failed: ' + (err && err.message ? err.message : String(err)));
       });
 
-      // Check on startup, then every 4 hours
+      // Check on startup, every 15 minutes, and whenever the window regains focus
       doCheck();
-      setInterval(doCheck, 4 * 60 * 60 * 1000);
+      setInterval(doCheck, 15 * 60 * 1000);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.on('focus', () => {
+          // Throttle to at most once per minute on focus
+          const now = Date.now();
+          if (!mainWindow._lastUpdateCheck || now - mainWindow._lastUpdateCheck > 60 * 1000) {
+            mainWindow._lastUpdateCheck = now;
+            doCheck();
+          }
+        });
+      }
     }
 
   } catch (err) {
