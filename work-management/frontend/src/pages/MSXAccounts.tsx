@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ExternalLink, RefreshCw, AlertCircle, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { PageHeader, Spinner } from '../components/ui';
@@ -19,6 +20,7 @@ const ACCOUNT_SELECT = [
 ].join(',');
 
 export default function MSXAccounts() {
+  const navigate = useNavigate();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,7 +182,8 @@ export default function MSXAccounts() {
                     filtered.map(a => (
                       <tr
                         key={a.accountid}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+                        onClick={() => navigate(`/msx-accounts/${a.accountid}`)}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100 max-w-56 truncate">
                           {a.name ?? '—'}
@@ -203,7 +206,7 @@ export default function MSXAccounts() {
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs whitespace-nowrap">
                           {a.msp_mstopparentid ?? '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => openInMSX(a.accountid)}
                             title="Open in MSX"
