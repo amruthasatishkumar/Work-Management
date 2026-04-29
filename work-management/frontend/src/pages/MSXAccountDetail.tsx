@@ -34,8 +34,11 @@ const OPP_SELECT = [
   'description',
   'statecode',
   'estimatedclosedate',
-  'estimatedvalue',
   '_ownerid_value',
+  'msp_forecastrecommendation',
+  'msp_activesalestage',
+  '_msp_solutionareaid_value',
+  '_msp_solutionplayid_value',
 ].join(',');
 
 const MILESTONE_SELECT = [
@@ -132,7 +135,7 @@ export default function MSXAccountDetail() {
     queryFn: async () => {
       return await d365Get<any>(
         headers!,
-        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${accountId}' and statecode eq 0&$select=${OPP_SELECT}&$orderby=estimatedclosedate&$top=200`,
+        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${accountId}' and statecode eq 0&$select=${OPP_SELECT}&$orderby=name&$top=200`,
       );
     },
   });
@@ -236,7 +239,7 @@ export default function MSXAccountDetail() {
                 description: opp.description ?? null,
                 status: mapOppStatus(opp.statecode),
                 estimatedCloseDate: opp.estimatedclosedate ?? null,
-                solutionPlay: null,
+                solutionPlay: opp[`_msp_solutionplayid_value${FV}`] ?? null,
                 link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
                 milestones,
                 activities,
@@ -388,7 +391,7 @@ export default function MSXAccountDetail() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
-                    {['Opportunity', 'Status', 'Owner', 'Est. Close', 'Est. Value', '', ''].map(h => (
+                    {['Opportunity', 'Recommendation', 'Active Sales Stage', 'Solution Area', 'Solution Play', 'Owner', '', ''].map(h => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap"
@@ -401,7 +404,7 @@ export default function MSXAccountDetail() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                   {opps.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
+                      <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
                         No open opportunities for this account in MSX.
                       </td>
                     </tr>
@@ -421,16 +424,19 @@ export default function MSXAccountDetail() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                            {mapOppStatus(opp.statecode)}
+                            {opp[`msp_forecastrecommendation${FV}`] ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-48 truncate text-xs">
+                            {opp[`msp_activesalestage${FV}`] ?? opp.msp_activesalestage ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                            {opp[`_msp_solutionareaid_value${FV}`] ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                            {opp[`_msp_solutionplayid_value${FV}`] ?? '—'}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
                             {opp[`_ownerid_value${FV}`] ?? '—'}
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                            {opp.estimatedclosedate ? opp.estimatedclosedate.split('T')[0] : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                            {opp[`estimatedvalue${FV}`] ?? (opp.estimatedvalue != null ? `$${opp.estimatedvalue}` : '—')}
                           </td>
                           <td className="px-4 py-3">
                             <button
