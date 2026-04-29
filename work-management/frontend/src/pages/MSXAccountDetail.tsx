@@ -398,7 +398,7 @@ export default function MSXAccountDetail() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
-                    {['Opportunity', 'Recommendation', 'Active Sales Stage', 'Solution Area', 'Solution Play', 'Owner', '', ''].map(h => (
+                    {['Opportunity', 'Recommendation', 'Opportunity Intent', 'Active Sales Stage', 'Solution Area', 'Solution Play', 'Owner', '', ''].map(h => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap"
@@ -411,7 +411,7 @@ export default function MSXAccountDetail() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                   {opps.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
+                      <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
                         No open opportunities for this account in MSX.
                       </td>
                     </tr>
@@ -432,6 +432,9 @@ export default function MSXAccountDetail() {
                           </td>
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap text-xs">
                             {pickField(opp, ['recommendation', 'forecastrecommendation', 'forecastcategory'])}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                            {pickField(opp, ['opportunityintent', 'intent'])}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-48 truncate text-xs">
                             {pickField(opp, ['activesalestage', 'salesstage'])}
