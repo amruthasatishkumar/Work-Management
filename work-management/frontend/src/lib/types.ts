@@ -36,6 +36,10 @@ export interface Opportunity {
   status: 'Committed' | 'In Progress' | 'Active' | 'Not Active';
   msx_id: string | null;
   solution_play: string | null;
+  opportunity_intent: string | null;
+  active_sales_stage: string | null;
+  solution_area: string | null;
+  recommendation: string | null;
   created_at: string;
   updated_at: string;
   activity_count?: number;

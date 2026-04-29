@@ -437,6 +437,26 @@ export default function Opportunities() {
                     </a>
                   )}
                   <Badge label={opp.status} variant={statusVariant(opp.status)} />
+                  {opp.opportunity_intent && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                      {opp.opportunity_intent}
+                    </span>
+                  )}
+                  {opp.recommendation && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300">
+                      {opp.recommendation}
+                    </span>
+                  )}
+                  {opp.active_sales_stage && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                      {opp.active_sales_stage}
+                    </span>
+                  )}
+                  {opp.solution_area && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300">
+                      {opp.solution_area}
+                    </span>
+                  )}
                   {opp.solution_play && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
                       {opp.solution_play}

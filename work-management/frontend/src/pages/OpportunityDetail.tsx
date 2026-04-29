@@ -230,8 +230,28 @@ export default function OpportunityDetail() {
             </button>
           </div>
         </div>
-        {(opp.description || opp.solution_play) && (
+        {(opp.description || opp.solution_play || opp.opportunity_intent || opp.active_sales_stage || opp.solution_area || opp.recommendation) && (
           <div className="border-t border-slate-100 dark:border-slate-700 pt-3 flex flex-col gap-1.5">
+            {opp.recommendation && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-medium text-slate-700 dark:text-slate-300">Recommendation:</span>{' '}{opp.recommendation}
+              </p>
+            )}
+            {opp.opportunity_intent && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-medium text-slate-700 dark:text-slate-300">Opportunity Intent:</span>{' '}{opp.opportunity_intent}
+              </p>
+            )}
+            {opp.active_sales_stage && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-medium text-slate-700 dark:text-slate-300">Active Sales Stage:</span>{' '}{opp.active_sales_stage}
+              </p>
+            )}
+            {opp.solution_area && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-medium text-slate-700 dark:text-slate-300">Solution Area:</span>{' '}{opp.solution_area}
+              </p>
+            )}
             {opp.solution_play && (
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 <span className="font-medium text-slate-700 dark:text-slate-300">Solution Play:</span>{' '}{opp.solution_play}
