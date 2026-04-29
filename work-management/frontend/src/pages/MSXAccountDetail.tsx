@@ -35,7 +35,6 @@ const OPP_SELECT = [
   'statecode',
   'estimatedclosedate',
   'estimatedvalue',
-  'msp_solutionplay',
   '_ownerid_value',
 ].join(',');
 
@@ -237,9 +236,7 @@ export default function MSXAccountDetail() {
                 description: opp.description ?? null,
                 status: mapOppStatus(opp.statecode),
                 estimatedCloseDate: opp.estimatedclosedate ?? null,
-                solutionPlay:
-                  opp[`msp_solutionplay${FV}`] ??
-                  (opp.msp_solutionplay != null ? String(opp.msp_solutionplay) : null),
+                solutionPlay: null,
                 link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
                 milestones,
                 activities,
@@ -391,7 +388,7 @@ export default function MSXAccountDetail() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
-                    {['Opportunity', 'Status', 'Solution Play', 'Owner', 'Est. Close', '', ''].map(h => (
+                    {['Opportunity', 'Status', 'Owner', 'Est. Close', 'Est. Value', '', ''].map(h => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap"
@@ -427,13 +424,13 @@ export default function MSXAccountDetail() {
                             {mapOppStatus(opp.statecode)}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                            {opp[`msp_solutionplay${FV}`] ?? '—'}
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
                             {opp[`_ownerid_value${FV}`] ?? '—'}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
                             {opp.estimatedclosedate ? opp.estimatedclosedate.split('T')[0] : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
+                            {opp[`estimatedvalue${FV}`] ?? (opp.estimatedvalue != null ? `$${opp.estimatedvalue}` : '—')}
                           </td>
                           <td className="px-4 py-3">
                             <button
