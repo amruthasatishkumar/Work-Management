@@ -28,19 +28,6 @@ const ACCOUNT_SELECT = [
   '_ownerid_value',
 ].join(',');
 
-const OPP_SELECT = [
-  'opportunityid',
-  'name',
-  'description',
-  'statecode',
-  'estimatedclosedate',
-  '_ownerid_value',
-  'msp_forecastrecommendation',
-  'msp_activesalestage',
-  '_msp_solutionareaid_value',
-  '_msp_solutionplayid_value',
-].join(',');
-
 const MILESTONE_SELECT = [
   'msp_engagementmilestoneid',
   'msp_milestonenumber',
@@ -58,6 +45,26 @@ function mapOppStatus(statecode: number): string {
   if (statecode === 1) return 'Committed';
   if (statecode === 2) return 'Not Active';
   return 'Active';
+}
+
+// Find a field whose key contains any of the given fragments. Prefers FormattedValue.
+function pickFieldRaw(obj: any, fragments: string[]): string | null {
+  if (!obj) return null;
+  const keys = Object.keys(obj);
+  for (const frag of fragments) {
+    const f = frag.toLowerCase();
+    // Prefer formatted value
+    const fvKey = keys.find(k => k.toLowerCase().includes(f) && k.endsWith(FV));
+    if (fvKey && obj[fvKey] != null && obj[fvKey] !== '') return String(obj[fvKey]);
+    // Fallback to raw value (skip lookup-id fields ending in _value unless formatted version is missing)
+    const rawKey = keys.find(k => k.toLowerCase().includes(f) && !k.includes('@'));
+    if (rawKey && obj[rawKey] != null && obj[rawKey] !== '') return String(obj[rawKey]);
+  }
+  return null;
+}
+
+function pickField(obj: any, fragments: string[]): string {
+  return pickFieldRaw(obj, fragments) ?? '—';
 }
 
 function mapActivityStatus(statecode: number): string {
@@ -135,7 +142,7 @@ export default function MSXAccountDetail() {
     queryFn: async () => {
       return await d365Get<any>(
         headers!,
-        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${accountId}' and statecode eq 0&$select=${OPP_SELECT}&$orderby=name&$top=200`,
+        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${accountId}' and statecode eq 0&$orderby=name&$top=200`,
       );
     },
   });
@@ -239,7 +246,7 @@ export default function MSXAccountDetail() {
                 description: opp.description ?? null,
                 status: mapOppStatus(opp.statecode),
                 estimatedCloseDate: opp.estimatedclosedate ?? null,
-                solutionPlay: opp[`_msp_solutionplayid_value${FV}`] ?? null,
+                solutionPlay: pickFieldRaw(opp, ['solutionplay']),
                 link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
                 milestones,
                 activities,
@@ -424,16 +431,16 @@ export default function MSXAccountDetail() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap text-xs">
-                            {opp[`msp_forecastrecommendation${FV}`] ?? '—'}
+                            {pickField(opp, ['recommendation', 'forecastrecommendation', 'forecastcategory'])}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-48 truncate text-xs">
-                            {opp[`msp_activesalestage${FV}`] ?? opp.msp_activesalestage ?? '—'}
+                            {pickField(opp, ['activesalestage', 'salesstage'])}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                            {opp[`_msp_solutionareaid_value${FV}`] ?? '—'}
+                            {pickField(opp, ['solutionarea'])}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
-                            {opp[`_msp_solutionplayid_value${FV}`] ?? '—'}
+                            {pickField(opp, ['solutionplay'])}
                           </td>
                           <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs">
                             {opp[`_ownerid_value${FV}`] ?? '—'}
