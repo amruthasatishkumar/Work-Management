@@ -297,6 +297,8 @@ export default function MSXAccountDetail() {
     ]);
   }
 
+  const [showDebug, setShowDebug] = useState(false);
+
   const account = accountQuery.data;
   const opps = oppsQuery.data ?? [];
   const loading = accountQuery.isLoading || oppsQuery.isLoading;
@@ -500,6 +502,35 @@ export default function MSXAccountDetail() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Debug: show all fields of first opp to find correct field names */}
+        {opps.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setShowDebug(v => !v)}
+              className="w-full px-4 py-2.5 text-xs font-mono text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer text-left"
+            >
+              {showDebug ? '▼' : '▶'} Debug: D365 fields on first opp ({opps[0].name?.slice(0, 60)})
+            </button>
+            {showDebug && (
+              <div className="px-4 pb-4 max-h-96 overflow-auto">
+                <table className="w-full text-xs font-mono">
+                  <tbody>
+                    {Object.entries(opps[0])
+                      .filter(([, v]) => v != null && v !== '' && typeof v !== 'object')
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([k, v]) => (
+                        <tr key={k} className="border-b border-slate-100 dark:border-slate-700/50">
+                          <td className="py-1 pr-3 text-slate-600 dark:text-slate-300 align-top w-1/2 break-all">{k}</td>
+                          <td className="py-1 text-slate-500 dark:text-slate-400 break-all">{String(v)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
