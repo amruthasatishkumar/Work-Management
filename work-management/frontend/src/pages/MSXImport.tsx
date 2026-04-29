@@ -157,7 +157,7 @@ async function searchD365ByTpids(
       const opps = await d365Get<any>(
         accessToken,
         // statecode eq 0 = Open only (excludes Won/Lost historical records)
-        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${account.accountid}' and statecode eq 0&$select=opportunityid,name,description,statecode,estimatedclosedate`
+        `${D365_BASE}/opportunities?$filter=_parentaccountid_value eq '${account.accountid}' and statecode eq 0&$select=opportunityid,name,description,statecode,estimatedclosedate,msp_opportunitytype,msp_salesplay,msp_activesalesstage`
       );
       const oppsWithMilestones: any[] = [];
       for (const opp of opps) {
@@ -561,7 +561,11 @@ export default function MSXImport() {
             description: opp.description ?? null,
             status: mapOppStatus(opp.statecode),
             estimatedCloseDate: opp.estimatedclosedate ?? null,
-            solutionPlay: (opp as any)['msp_solutionplay@OData.Community.Display.V1.FormattedValue'] ?? ((opp as any).msp_solutionplay != null ? String((opp as any).msp_solutionplay) : null),
+            solutionPlay: (opp as any)['msp_salesplay@OData.Community.Display.V1.FormattedValue'] ?? null,
+            opportunityIntent: (opp as any)['msp_opportunitytype@OData.Community.Display.V1.FormattedValue'] ?? null,
+            activeSalesStage: (opp as any)['msp_activesalesstage@OData.Community.Display.V1.FormattedValue'] ?? (opp as any).msp_activesalesstage ?? null,
+            solutionArea: null,
+            recommendation: null,
             link: `https://microsoftsales.crm.dynamics.com/main.aspx?etn=opportunity&pagetype=entityrecord&id=${opp.opportunityid}`,
             milestones: (opp.milestones ?? []).map((m: MsxMilestone) => ({
               msxId: m.msxId,

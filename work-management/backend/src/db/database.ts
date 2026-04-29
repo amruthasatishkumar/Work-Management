@@ -400,6 +400,21 @@ function runMigrations() {
   if (!actColsMilestone.some((c: any) => c.name === 'milestone_id')) {
     db.exec('ALTER TABLE activities ADD COLUMN milestone_id INTEGER REFERENCES opportunity_milestones(id) ON DELETE SET NULL');
   }
+
+  // 23. Add MSX opportunity metadata columns (opportunity_intent, active_sales_stage, solution_area, recommendation)
+  const oppColsMeta = db.prepare('PRAGMA table_info(opportunities)').all() as any[];
+  if (!oppColsMeta.some((c: any) => c.name === 'opportunity_intent')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN opportunity_intent TEXT');
+  }
+  if (!oppColsMeta.some((c: any) => c.name === 'active_sales_stage')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN active_sales_stage TEXT');
+  }
+  if (!oppColsMeta.some((c: any) => c.name === 'solution_area')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN solution_area TEXT');
+  }
+  if (!oppColsMeta.some((c: any) => c.name === 'recommendation')) {
+    db.exec('ALTER TABLE opportunities ADD COLUMN recommendation TEXT');
+  }
 }
 
 runMigrations();

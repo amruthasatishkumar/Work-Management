@@ -98,15 +98,15 @@ router.post('/import', (req: Request, res: Response) => {
 
           if (existingOpp) {
             db.prepare(
-              'UPDATE opportunities SET title = ?, description = ?, status = ?, account_id = ?, link = ?, solution_play = ?, updated_at = datetime(\'now\') WHERE msx_id = ?'
-            ).run(opp.title, opp.description ?? null, opp.status, accountId, opp.link ?? null, opp.solutionPlay ?? null, opp.msxId);
+              'UPDATE opportunities SET title = ?, description = ?, status = ?, account_id = ?, link = ?, solution_play = ?, opportunity_intent = ?, active_sales_stage = ?, solution_area = ?, recommendation = ?, updated_at = datetime(\'now\') WHERE msx_id = ?'
+            ).run(opp.title, opp.description ?? null, opp.status, accountId, opp.link ?? null, opp.solutionPlay ?? null, opp.opportunityIntent ?? null, opp.activeSalesStage ?? null, opp.solutionArea ?? null, opp.recommendation ?? null, opp.msxId);
             oppId = existingOpp.id;
             // Remove old MSX activities for this opp so we re-import fresh
             db.prepare('DELETE FROM activities WHERE opportunity_id = ? AND account_id = ? AND msx_id IS NOT NULL').run(oppId, accountId);
           } else {
             const result: any = db.prepare(
-              'INSERT INTO opportunities (account_id, title, description, status, link, msx_id, solution_play) VALUES (?, ?, ?, ?, ?, ?, ?)'
-            ).run(accountId, opp.title, opp.description ?? null, opp.status, opp.link ?? null, opp.msxId, opp.solutionPlay ?? null);
+              'INSERT INTO opportunities (account_id, title, description, status, link, msx_id, solution_play, opportunity_intent, active_sales_stage, solution_area, recommendation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ).run(accountId, opp.title, opp.description ?? null, opp.status, opp.link ?? null, opp.msxId, opp.solutionPlay ?? null, opp.opportunityIntent ?? null, opp.activeSalesStage ?? null, opp.solutionArea ?? null, opp.recommendation ?? null);
             oppId = result.lastInsertRowid;
             importedOpportunities++;
           }
@@ -201,7 +201,7 @@ router.post('/import', (req: Request, res: Response) => {
 // Live-sync: upserts fresh comments + MSX-linked activities for one opp.
 // Locally-created activities (no msx_id) are never touched.
 router.post('/refresh-opp', (req: Request, res: Response) => {
-  const { localOppId, comments, activities, msxActivityIds, milestones, solutionPlay } = req.body;
+  const { localOppId, comments, activities, msxActivityIds, milestones, solutionPlay, opportunityIntent, activeSalesStage, solutionArea, recommendation } = req.body;
   if (!localOppId) return res.status(400).json({ error: 'localOppId required' });
 
   const opp = db.prepare('SELECT account_id FROM opportunities WHERE id = ?').get(localOppId) as any;
@@ -211,10 +211,17 @@ router.post('/refresh-opp', (req: Request, res: Response) => {
   try {
     db.exec('BEGIN');
     try {
-      // Update solution_play on the opportunity if provided
-      if (solutionPlay !== undefined) {
-        db.prepare('UPDATE opportunities SET solution_play = ?, updated_at = datetime(\'now\') WHERE id = ?')
-          .run(solutionPlay ?? null, localOppId);
+      // Update MSX-sourced metadata on the opportunity if provided
+      const metaSets: string[] = [];
+      const metaVals: any[] = [];
+      if (solutionPlay !== undefined)       { metaSets.push('solution_play = ?');       metaVals.push(solutionPlay ?? null); }
+      if (opportunityIntent !== undefined)  { metaSets.push('opportunity_intent = ?');  metaVals.push(opportunityIntent ?? null); }
+      if (activeSalesStage !== undefined)   { metaSets.push('active_sales_stage = ?');  metaVals.push(activeSalesStage ?? null); }
+      if (solutionArea !== undefined)       { metaSets.push('solution_area = ?');       metaVals.push(solutionArea ?? null); }
+      if (recommendation !== undefined)     { metaSets.push('recommendation = ?');      metaVals.push(recommendation ?? null); }
+      if (metaSets.length) {
+        db.prepare(`UPDATE opportunities SET ${metaSets.join(', ')}, updated_at = datetime('now') WHERE id = ?`)
+          .run(...metaVals, localOppId);
       }
       for (const comment of (comments ?? [])) {
         if (!comment.content?.trim()) continue;
